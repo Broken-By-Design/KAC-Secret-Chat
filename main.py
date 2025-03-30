@@ -41,6 +41,14 @@ def clear_chatlogs():
 
 def add_chatlog_entry(message, nickname, timestamp):
     global current_log_file
+    # # Ensure current_log_file is set. If not, try to initialize it.
+    # if not current_log_file:
+    #     print("Warning: current_log_file was None, reinitializing chatlog status.")
+    #     check_chatlog_status()
+    #     if not current_log_file:
+    #         print("Error: Unable to set current_log_file. Chatlog entry not added.")
+    #         return
+
     chatlogs = []
 
     if os.path.exists(current_log_file):
@@ -55,6 +63,7 @@ def add_chatlog_entry(message, nickname, timestamp):
 
     with open(current_log_file, 'w') as f:
         json.dump(chatlogs, f)
+
 
 def schedule_task():
     schedule.every().day.at("00:00").do(clear_chatlogs)
@@ -131,18 +140,25 @@ def run_scheduled_task():
 
 def check_chatlog_status():
     global current_log_file
-    today_file = os.path.join("chatlogs", datetime.datetime.now().strftime('%Y-%m-%d') + ".json")
+    chatlogs_dir = "chatlogs"
+    today_file = os.path.join(chatlogs_dir, datetime.datetime.now().strftime('%Y-%m-%d') + ".json")
 
-    if os.path.exists("chatlogs") == False:
-        os.makedirs("chatlogs")
-        clear_chatlogs()
-        return 
-    
+    if not os.path.exists(chatlogs_dir):
+        os.makedirs(chatlogs_dir)
+
     if os.path.exists(today_file):
         current_log_file = today_file
-        print(f"Today log file exists. Using it.")
+        print(f"Today log file exists. Using it: {current_log_file}")
     else:
         clear_chatlogs()
+
+    if current_log_file is None:
+        current_log_file = today_file  # Ensure it is always set
+
+with app.app_context():
+    check_chatlog_status()
+    run_scheduled_task()
+
 
 if __name__ == '__main__':
     check_chatlog_status()
