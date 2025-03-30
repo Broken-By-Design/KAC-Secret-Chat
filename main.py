@@ -1,3 +1,7 @@
+import eventlet
+eventlet.monkey_patch()
+
+
 import os
 import datetime
 from dotenv import load_dotenv
