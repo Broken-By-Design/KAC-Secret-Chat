@@ -132,6 +132,12 @@ def run_scheduled_task():
 def check_chatlog_status():
     global current_log_file
     today_file = os.path.join("chatlogs", datetime.datetime.now().strftime('%Y-%m-%d') + ".json")
+
+    if os.path.exists("chatlogs") == False:
+        os.makedirs("chatlogs")
+        clear_chatlogs()
+        return 
+    
     if os.path.exists(today_file):
         current_log_file = today_file
         print(f"Today log file exists. Using it.")
