@@ -112,7 +112,7 @@ def login():
         response.set_cookie('acceptance_cookie', request.form.get("password"), max_age=datetime.timedelta(days=3))
         return response
     else:
-        return f"Login Failed...\nWhat you typed: {request.form.get('password')}\nCorrect Answer: {app.config['CHAT_SECRET_KEY']}"
+        return render_template('login.html', error="Incorrect password")
     # response = app.make_response(render_template('chatroom.html'))
     # response.set_cookie('acceptance_cookie', 'true')
     # return response
@@ -130,6 +130,9 @@ def set_nickname():
 @app.route('/get_chatlogs', methods=['GET'])
 def get_chatlogs():
     global current_log_file
+    acceptance_cookie = request.cookies.get('acceptance_cookie')
+    if (not acceptance_cookie) or (acceptance_cookie != app.config['CHAT_SECRET_KEY']):
+            return "Unauthorized", 401
     if current_log_file and os.path.exists(current_log_file):
         with open(current_log_file, 'r') as f:
             chatlogs = json.load(f)
