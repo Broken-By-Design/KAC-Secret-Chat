@@ -1,3 +1,12 @@
+fetch("/get_chatlogs", { credentials: "include" }) // First thing
+  .then((response) => response.json())
+  .then((data) => {
+    data.forEach((entry) => {
+      addMessage(entry.message, entry.nickname, entry.timestamp);
+    });
+  })
+  .catch((error) => console.error("Error loading chat logs:", error));
+
 const socket = io();
 
 let missedCount = 0; // Count of messages received while tab is unfocused
@@ -35,7 +44,6 @@ function updateTitle() {
 //   window.scrollTo(0, document.body.scrollHeight);
 // }
 
-
 function addMessage(message, nickname, timestamp) {
   const item = document.createElement("li");
   item.innerHTML = `<b>${HtmlSanitizer.SanitizeHtml(
@@ -55,15 +63,6 @@ window.addEventListener("focus", () => {
 socket.on("connect", function () {
   console.log("Connection Established");
 });
-
-fetch("/get_chatlogs", { credentials: "include" })
-  .then((response) => response.json())
-  .then((data) => {
-    data.forEach((entry) => {
-      addMessage(entry.message, entry.nickname, entry.timestamp);
-    });
-  })
-  .catch((error) => console.error("Error loading chat logs:", error));
 
 const form = document.getElementById("form");
 const input = document.getElementById("input");
