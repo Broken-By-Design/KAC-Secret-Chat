@@ -1,0 +1,144 @@
+import os
+import datetime
+from dotenv import load_dotenv
+import schedule
+from threading import Thread
+import time
+import json
+
+from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify
+from flask_socketio import SocketIO
+
+
+load_dotenv()
+
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "P%22%3BgzPe%5Ck%5D%3BgV-%7B%255TGSPYX%40OE7%5C.%40JsSuuoxHR%3A%3C1yBR%21N%28mm")
+
+socketio = SocketIO(app)
+
+app.config['CHAT_SECRET_KEY'] = os.getenv("CHAT_SECRET_KEY", None)
+
+current_log_file = None
+
+def clear_chatlogs():
+    global current_log_file
+    chatlogs_dir = 'chatlogs'
+
+    for filename in os.listdir(chatlogs_dir):
+        file_path = os.path.join(chatlogs_dir, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    current_log_file = os.path.join(chatlogs_dir, f"{today}.json")
+
+    with open(current_log_file, 'w') as f:
+        json.dump([], f)
+
+    print(f"New log file created: {current_log_file}")
+
+def add_chatlog_entry(message, nickname, timestamp):
+    global current_log_file
+    chatlogs = []
+
+    if os.path.exists(current_log_file):
+        with open(current_log_file, 'r') as f:
+            chatlogs = json.load(f)
+
+    chatlogs.append({
+        'message': message,
+        'nickname': nickname,
+        'timestamp': timestamp
+    })
+
+    with open(current_log_file, 'w') as f:
+        json.dump(chatlogs, f)
+
+def schedule_task():
+    schedule.every().day.at("00:00").do(clear_chatlogs)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+
+@socketio.on("chat_message")
+def handle_chat_message(data):
+    message = data.get('message')
+    nickname = data.get('nickname')
+    timestamp = data.get('timestamp')
+    
+    print(f"Received message: {message} from {nickname} at {timestamp}")
+
+    socketio.emit('chat_message', { 'message': message, 'nickname': nickname, 'timestamp': timestamp })
+
+    add_chatlog_entry(message, nickname, timestamp)
+
+@app.route('/')
+def index():
+    acceptance_cookie = request.cookies.get('acceptance_cookie')
+    nickname_cookie = request.cookies.get('nickname')
+    if (
+        (acceptance_cookie) and (acceptance_cookie == app.config['CHAT_SECRET_KEY']) and
+        (nickname_cookie)
+        ):
+        return render_template('chatroom.html')
+    else:
+        return render_template('login.html')
+    # return render_template('index.html')
+
+@app.route('/login', methods=['POST'])
+def login():
+    if request.form.get("password") == app.config['CHAT_SECRET_KEY']:
+        if request.cookies.get("nickname"):
+            response = make_response(render_template('chatroom.html'))
+        else:
+            response = make_response(render_template('nickname.html'))
+        response.set_cookie('acceptance_cookie', request.form.get("password"), max_age=datetime.timedelta(days=3))
+        return response
+    else:
+        return f"Login Failed...\nWhat you typed: {request.form.get('password')}\nCorrect Answer: {app.config['CHAT_SECRET_KEY']}"
+    # response = app.make_response(render_template('chatroom.html'))
+    # response.set_cookie('acceptance_cookie', 'true')
+    # return response
+
+@app.route('/set-nickname', methods=['POST'])
+def set_nickname():
+    acceptance_cookie = request.cookies.get('acceptance_cookie')
+    if (acceptance_cookie) and (acceptance_cookie == app.config['CHAT_SECRET_KEY']):
+        response = make_response(redirect(url_for('index')))
+        response.set_cookie('nickname', request.form.get("nickname"))
+        return response
+    else:
+        return render_template('login.html')
+
+@app.route('/get_chatlogs', methods=['GET'])
+def get_chatlogs():
+    global current_log_file
+    if current_log_file and os.path.exists(current_log_file):
+        with open(current_log_file, 'r') as f:
+            chatlogs = json.load(f)
+        return jsonify(chatlogs)
+    else:
+        return jsonify([])
+
+def run_scheduled_task():
+    scheduler_thread = Thread(target=schedule_task)
+    scheduler_thread.daemon = True
+    scheduler_thread.start()
+
+def check_chatlog_status():
+    global current_log_file
+    today_file = os.path.join("chatlogs", datetime.datetime.now().strftime('%Y-%m-%d') + ".json")
+    if os.path.exists(today_file):
+        current_log_file = today_file
+        print(f"Today log file exists. Using it.")
+    else:
+        clear_chatlogs()
+
+if __name__ == '__main__':
+    check_chatlog_status()
+    run_scheduled_task()
+    socketio.run(app)
