@@ -1,3 +1,4 @@
 .env
 chatlogs/*
 .venv/
+**__pycache__/
