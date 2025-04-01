@@ -122,6 +122,7 @@ socket.on("clear_chat", () => {
 
 socket.on('send_image', (data) => {
   addImageMessage(data.image, data.nickname, data.timestamp);
+  updateTitle();
 });
 
 
