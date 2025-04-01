@@ -85,3 +85,7 @@ socket.on("chat_message", (msg) => {
     updateTitle();
   }
 });
+
+socket.on("clear_chat", () => {
+  messages.innerHTML = "";
+});

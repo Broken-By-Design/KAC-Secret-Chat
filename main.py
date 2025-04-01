@@ -114,6 +114,9 @@ def handle_chat_message(data):
     timestamp = data.get('timestamp')
     
     # print(f"Received message: {message} from {nickname} at {timestamp}")
+    if message == "/clear":
+        socketio.emit('clear_chat', room=request.sid)
+        return
 
     socketio.emit('chat_message', { 'message': message, 'nickname': nickname, 'timestamp': timestamp })
 
@@ -125,6 +128,10 @@ def handle_chat_message(data):
         timestamp = datetime.datetime.now().isoformat()
         socketio.emit('chat_message', { 'message': message, 'nickname': "KAC-Bot", 'timestamp': timestamp })
         add_chatlog_entry(message, "KAC-Bot", timestamp)
+
+    if message == "/clear":
+        # socketio.emit('clear_chat', {}, to)
+        socketio.emit('clear_chat', room=request.sid)
 
 @app.route('/')
 def index():
