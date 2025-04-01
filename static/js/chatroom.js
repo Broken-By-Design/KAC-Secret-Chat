@@ -2,7 +2,11 @@ fetch("/get_chatlogs", { credentials: "include" }) // First thing
   .then((response) => response.json())
   .then((data) => {
     data.forEach((entry) => {
-      addMessage(entry.message, entry.nickname, entry.timestamp);
+      if (entry.type == "image") {
+        addImageMessage(entry.message, entry.nickname, entry.timestamp);
+      } else {
+        addMessage(entry.message, entry.nickname, entry.timestamp);
+      }
     });
   })
   .catch((error) => console.error("Error loading chat logs:", error));
@@ -32,6 +36,16 @@ function formatTime(dateString) {
   });
 }
 
+function sendImage(file, nickname, timestamp) {
+  const reader = new FileReader();
+  reader.readAsDataURL(file); // Convert image to Base64
+  reader.onload = function () {
+    console.log(reader.result);
+      socket.emit('send_image', { image: reader.result, nickname: nickname, timestamp: timestamp });
+  };
+}
+
+
 function updateTitle() {
   document.title =
     missedCount > 0 ? `(${missedCount}) ${originalTitle}` : originalTitle;
@@ -48,6 +62,13 @@ function addMessage(message, nickname, timestamp) {
 
   const item = document.createElement("li");
   item.innerHTML = `<b>${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
+  messages.appendChild(item);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+function addImageMessage(image, nickname, timestamp) {
+  const item = document.createElement("li");
+  item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> <img src="${image}" /> <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
   window.scrollTo(0, document.body.scrollHeight);
 }
@@ -78,6 +99,15 @@ form.addEventListener("submit", (e) => {
   }
 });
 
+document.getElementById("openFile").addEventListener("click", function () {
+  document.getElementById("fileInput").click();
+});
+
+document.getElementById("fileInput").addEventListener("change", function (event) {
+  let file = event.target.files[0];
+  sendImage(file, getCookie("nickname"), new Date().toISOString());
+});
+
 socket.on("chat_message", (msg) => {
   addMessage(msg.message, msg.nickname, msg.timestamp);
   if (document.hidden) {
@@ -89,3 +119,9 @@ socket.on("chat_message", (msg) => {
 socket.on("clear_chat", () => {
   messages.innerHTML = "";
 });
+
+socket.on('send_image', (data) => {
+  addImageMessage(data.image, data.nickname, data.timestamp);
+});
+
+

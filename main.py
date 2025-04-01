@@ -52,7 +52,7 @@ def clear_chatlogs():
 
     print(f"New log file created: {current_log_file}")
 
-def add_chatlog_entry(message, nickname, timestamp):
+def add_chatlog_entry(message, nickname, timestamp, msg_type: str = "text"):
     global current_log_file
     # # Ensure current_log_file is set. If not, try to initialize it.
     # if not current_log_file:
@@ -71,7 +71,8 @@ def add_chatlog_entry(message, nickname, timestamp):
     chatlogs.append({
         'message': message,
         'nickname': nickname,
-        'timestamp': timestamp
+        'timestamp': timestamp,
+        'type': msg_type
     })
 
     with open(current_log_file, 'w') as f:
@@ -132,6 +133,17 @@ def handle_chat_message(data):
     if message == "/clear":
         # socketio.emit('clear_chat', {}, to)
         socketio.emit('clear_chat', room=request.sid)
+
+@socketio.on("send_image")
+def handle_image(data):
+    print("Received image")
+    image = data.get('image')
+    nickname = data.get('nickname')
+    timestamp = data.get('timestamp')
+
+    socketio.emit('send_image', { 'image': image, 'nickname': nickname, 'timestamp': timestamp })
+
+    add_chatlog_entry(image, nickname, timestamp, msg_type="image")
 
 @app.route('/')
 def index():

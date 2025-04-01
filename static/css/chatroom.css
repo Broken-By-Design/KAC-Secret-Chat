@@ -43,7 +43,7 @@ body {
 }
 
 #messages {
-    color: whitesmoke;
+  color: whitesmoke;
   list-style-type: none;
   margin: 0;
   padding: 0;
@@ -53,6 +53,24 @@ body {
 }
 #messages > li:nth-child(odd) {
   background: #151515;
+}
+
+#messages > li > #nickname {
+  vertical-align: top;
+}
+
+#messages > li > img {
+  max-width: 30vw;
+  height: auto;
+}
+
+#openFile {
+  background: none !important;
+  width: fit-content;
+}
+
+#openFile:hover {
+  cursor: pointer;
 }
 
 #timestamp {
