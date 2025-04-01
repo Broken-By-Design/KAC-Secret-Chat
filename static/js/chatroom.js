@@ -37,23 +37,21 @@ function updateTitle() {
     missedCount > 0 ? `(${missedCount}) ${originalTitle}` : originalTitle;
 }
 
-// function addMessage(message, nickname, timestamp) {
-//   const item = document.createElement("li");
-//   item.innerHTML = `<b>${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(message)} <span id="timestamp">${formatTime(timestamp)}</span>`;
-//   messages.appendChild(item);
-//   window.scrollTo(0, document.body.scrollHeight);
-// }
-
 function addMessage(message, nickname, timestamp) {
+  // Regular expression to match URLs (basic example)
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+  // Replace URLs with anchor tags
+  const formattedMessage = message.replace(urlRegex, (url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  });
+
   const item = document.createElement("li");
-  item.innerHTML = `<b>${HtmlSanitizer.SanitizeHtml(
-    nickname
-  )}:</b> ${HtmlSanitizer.SanitizeHtml(
-    message
-  )} <span id="timestamp">${formatTime(timestamp)}</span>`;
+  item.innerHTML = `<b>${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
   window.scrollTo(0, document.body.scrollHeight);
 }
+
 
 window.addEventListener("focus", () => {
   missedCount = 0;

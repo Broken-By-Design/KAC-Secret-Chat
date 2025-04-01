@@ -9,6 +9,9 @@ import schedule
 from threading import Thread
 import time
 import json
+from google import genai
+from google.genai import types
+# from google.genai.types import Tool, GoogleSearch
 
 from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify
 from flask_socketio import SocketIO
@@ -23,6 +26,12 @@ app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "P%22%3BgzPe%5Ck%5D%3BgV-%7B%
 socketio = SocketIO(app)
 
 app.config['CHAT_SECRET_KEY'] = os.getenv("CHAT_SECRET_KEY", None)
+app.config['GEMINI_API_KEY'] = os.getenv("GEMINI_API_KEY", None)
+
+ai_client = genai.Client(api_key=app.config['GEMINI_API_KEY'])
+
+with open("ai_personality.txt", "r") as f:
+    ai_personality = f.read()
 
 current_log_file = None
 
@@ -76,6 +85,27 @@ def schedule_task():
         schedule.run_pending()
         time.sleep(60)
 
+def generate_response(message: str, enable_google_search: bool = True):
+    global ai_client
+
+    
+
+    google_search_tool = types.Tool(
+        google_search = types.GoogleSearch()
+        )
+
+    generate_content_config = types.GenerateContentConfig(
+            system_instruction=ai_personality,
+            tools=[google_search_tool] if enable_google_search else [],
+            response_modalities=["TEXT"],
+        )
+
+    response = ai_client.models.generate_content(
+        model="gemini-2.0-flash",
+        config=generate_content_config,
+        contents=message,
+    )
+    return response
 
 @socketio.on("chat_message")
 def handle_chat_message(data):
@@ -83,11 +113,18 @@ def handle_chat_message(data):
     nickname = data.get('nickname')
     timestamp = data.get('timestamp')
     
-    print(f"Received message: {message} from {nickname} at {timestamp}")
+    # print(f"Received message: {message} from {nickname} at {timestamp}")
 
     socketio.emit('chat_message', { 'message': message, 'nickname': nickname, 'timestamp': timestamp })
 
     add_chatlog_entry(message, nickname, timestamp)
+
+    if message.startswith("!bot "):
+        response = generate_response(f"{nickname} asks '{message.removeprefix("!bot ")}'")
+        message = response.text
+        timestamp = datetime.datetime.now().isoformat()
+        socketio.emit('chat_message', { 'message': message, 'nickname': "KAC-Bot", 'timestamp': timestamp })
+        add_chatlog_entry(message, "KAC-Bot", timestamp)
 
 @app.route('/')
 def index():
