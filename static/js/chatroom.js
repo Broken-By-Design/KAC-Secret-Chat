@@ -52,19 +52,27 @@ function updateTitle() {
 }
 
 function addMessage(message, nickname, timestamp) {
-  // Regular expression to match URLs (basic example)
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  // First, convert Markdown links [text](url) to HTML anchor tags.
+  const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  let formattedMessage = message.replace(mdLinkRegex, (match, text, url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  });
 
-  // Replace URLs with anchor tags
-  const formattedMessage = message.replace(urlRegex, (url) => {
+  // Then, as a fallback, replace any plain URLs with anchor tags.
+  // const urlRegex = /(https?:\/\/[^\s]+)/g;
+  // const urlRegex = /(?<!href=")(https?:\/\/[^\s<]+)/g;
+  const urlRegex = /(^|\s)(https?:\/\/[^\s<]+)/g;
+  formattedMessage = formattedMessage.replace(urlRegex, (url) => {
     return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
   });
 
   const item = document.createElement("li");
+  // Note: Make sure your sanitizer is configured to allow <a> tags, or you might see your anchors stripped out.
   item.innerHTML = `<b>${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
   window.scrollTo(0, document.body.scrollHeight);
 }
+
 
 function addImageMessage(image, nickname, timestamp) {
   const item = document.createElement("li");
