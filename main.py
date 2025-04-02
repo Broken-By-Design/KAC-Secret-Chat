@@ -108,9 +108,10 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
 
     
     chat_context = load_recent_chat_context(num_messages=20)
-    
+    people_online = "".join([f"{name}\n" for name in connected_usernames])
     # Build a full prompt that includes the chat history and the new message
-    full_prompt = f"Here is the conversation so far:\n{chat_context}\n{user}: {message}\nKAC-Bot:"
+    full_prompt = f"Users connected:\n{people_online}Here is the conversation so far:\n{chat_context}\nKAC-Bot:"
+    print(full_prompt)
 
     # full_prompt = f"{user} asks: {message}"
 
@@ -138,8 +139,8 @@ def handle_connect():
 
     # if nickname not in connected_usernames:
     #     socketio.emit('user_connected', nickname)
-
-    connected_usernames.append(nickname)
+    if nickname:
+        connected_usernames.append(nickname)
     
 
 @socketio.on("disconnect")
