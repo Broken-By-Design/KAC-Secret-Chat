@@ -166,7 +166,7 @@ def login():
             response = make_response(render_template('chatroom.html'))
         else:
             response = make_response(render_template('nickname.html'))
-        response.set_cookie('acceptance_cookie', request.form.get("password"), max_age=datetime.timedelta(days=3))
+        response.set_cookie('acceptance_cookie', request.form.get("password"), max_age=datetime.timedelta(weeks=1))
         return response
     else:
         return render_template('login.html', error="Incorrect password")
