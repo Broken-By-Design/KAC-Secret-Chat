@@ -11,7 +11,12 @@ fetch("/get_chatlogs", { credentials: "include" }) // First thing
   })
   .catch((error) => console.error("Error loading chat logs:", error));
 
-const socket = io();
+const socket = io({
+  query: {
+    nickname: getCookie("nickname"),
+  }
+});
+
 
 let missedCount = 0; // Count of messages received while tab is unfocused
 const originalTitle = document.title; // Save the original tab title
@@ -136,4 +141,9 @@ socket.on('send_image', (data) => {
   }
 });
 
-
+socket.on("user_connected", (nickname) => {
+  const item = document.createElement("li");
+  item.innerHTML = `Welcome! <b>${HtmlSanitizer.SanitizeHtml(nickname)}</b> has joined the chat.`;
+  messages.appendChild(item);
+  window.scrollTo(0, document.body.scrollHeight);
+});

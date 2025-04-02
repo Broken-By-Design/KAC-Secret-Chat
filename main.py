@@ -36,6 +36,8 @@ with open("ai_personality.txt", "r") as f:
 
 current_log_file = None
 
+connected_usernames = []
+
 def clear_chatlogs():
     global current_log_file
     chatlogs_dir = 'chatlogs'
@@ -109,6 +111,24 @@ def generate_response(message: str, enable_google_search: bool = True):
     )
     return response
 
+@socketio.on("connect")
+def handle_connect():
+    nickname = request.args.get('nickname')
+    print(f"User connected: {nickname}")
+
+    # if nickname not in connected_usernames:
+    #     socketio.emit('user_connected', nickname)
+
+    connected_usernames.append(nickname)
+    
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    nickname = request.cookies.get('nickname')
+    print(f"User disconnected: {nickname}")
+    connected_usernames.remove(nickname)
+    # socketio.emit('user_disconnected', nickname)
+
 @socketio.on("chat_message")
 def handle_chat_message(data):
     message = data.get('message')
@@ -178,8 +198,11 @@ def login():
 def set_nickname():
     acceptance_cookie = request.cookies.get('acceptance_cookie')
     if (acceptance_cookie) and (acceptance_cookie == app.config['CHAT_SECRET_KEY']):
+        if request.form.get("nickname") in connected_usernames:
+            return render_template('nickname.html', error="User with that name already in chat")
         response = make_response(redirect(url_for('index')))
         response.set_cookie('nickname', request.form.get("nickname"))
+        socketio.emit('user_connected', request.form.get("nickname"))
         return response
     else:
         return render_template('login.html')
