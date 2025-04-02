@@ -11,6 +11,7 @@ import time
 import json
 from google import genai
 from google.genai import types
+import eventlet
 # from google.genai.types import Tool, GoogleSearch
 
 from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify
@@ -23,7 +24,7 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "P%22%3BgzPe%5Ck%5D%3BgV-%7B%255TGSPYX%40OE7%5C.%40JsSuuoxHR%3A%3C1yBR%21N%28mm")
 
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode="eventlet")
 
 app.config['CHAT_SECRET_KEY'] = os.getenv("CHAT_SECRET_KEY", None)
 app.config['GEMINI_API_KEY'] = os.getenv("GEMINI_API_KEY", None)
@@ -84,7 +85,7 @@ def schedule_task():
 
     while True:
         schedule.run_pending()
-        time.sleep(60)
+        eventlet.sleep(60)
 
 def generate_response(message: str, enable_google_search: bool = True):
     global ai_client

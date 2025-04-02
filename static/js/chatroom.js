@@ -107,14 +107,14 @@ form.addEventListener("submit", (e) => {
   }
 });
 
-document.getElementById("openFile").addEventListener("click", function () {
-  document.getElementById("fileInput").click();
-});
+// document.getElementById("openFile").addEventListener("click", function () {
+//   document.getElementById("fileInput").click();
+// });
 
-document.getElementById("fileInput").addEventListener("change", function (event) {
-  let file = event.target.files[0];
-  sendImage(file, getCookie("nickname"), new Date().toISOString());
-});
+// document.getElementById("fileInput").addEventListener("change", function (event) {
+//   let file = event.target.files[0];
+//   sendImage(file, getCookie("nickname"), new Date().toISOString());
+// });
 
 socket.on("chat_message", (msg) => {
   addMessage(msg.message, msg.nickname, msg.timestamp);
