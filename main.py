@@ -89,10 +89,30 @@ def schedule_task():
         schedule.run_pending()
         eventlet.sleep(60)
 
-def generate_response(message: str, enable_google_search: bool = True):
+def load_recent_chat_context(num_messages=10):
+    chat_context = ""
+    if current_log_file and os.path.exists(current_log_file):
+        with open(current_log_file, "r") as f:
+            chatlogs = json.load(f)
+        # Filter out messages from 'KAC-Bot' and take the last num_messages messages
+        # filtered_logs = [log for log in chatlogs if log['nickname'] != "KAC-Bot"]
+        filtered_logs = chatlogs
+        for log in filtered_logs[-num_messages:]:
+            chat_context += f"{log['nickname']}: {log['message']}\n"
+    return chat_context
+
+
+
+def generate_response(message: str, user: str, enable_google_search: bool = True):
     global ai_client
 
     
+    chat_context = load_recent_chat_context(num_messages=20)
+    
+    # Build a full prompt that includes the chat history and the new message
+    full_prompt = f"Here is the conversation so far:\n{chat_context}\n{user}: {message}\nKAC-Bot:"
+
+    # full_prompt = f"{user} asks: {message}"
 
     google_search_tool = types.Tool(
         google_search = types.GoogleSearch()
@@ -107,7 +127,7 @@ def generate_response(message: str, enable_google_search: bool = True):
     response = ai_client.models.generate_content(
         model="gemini-2.0-flash",
         config=generate_content_config,
-        contents=message,
+        contents=full_prompt,
     )
     return response
 
@@ -145,7 +165,7 @@ def handle_chat_message(data):
     add_chatlog_entry(message, nickname, timestamp)
 
     if message.startswith("!bot "):
-        response = generate_response(f"{nickname} asks '{message.removeprefix("!bot ")}'")
+        response = generate_response(message, user=nickname) # .removeprefix("!bot ")?
         message = response.text
         timestamp = datetime.datetime.now().isoformat()
         socketio.emit('chat_message', { 'message': message, 'nickname': "KAC-Bot", 'timestamp': timestamp })
@@ -219,6 +239,14 @@ def get_chatlogs():
         return jsonify(chatlogs)
     else:
         return jsonify([])
+
+@app.route('/get_connected_users', methods=['GET'])
+def get_connected_users():
+    global connected_usernames
+    acceptance_cookie = request.cookies.get('acceptance_cookie')
+    if (not acceptance_cookie) or (acceptance_cookie != app.config['CHAT_SECRET_KEY']):
+            return "Unauthorized", 401
+    return jsonify(connected_usernames)
 
 def run_scheduled_task():
     scheduler_thread = Thread(target=schedule_task)

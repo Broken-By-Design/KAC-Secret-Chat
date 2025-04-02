@@ -57,6 +57,10 @@ function updateTitle() {
 }
 
 function addMessage(message, nickname, timestamp) {
+  if (!message) return;
+  if (!nickname) return;
+  if (!timestamp) return;
+
   // First, convert Markdown links [text](url) to HTML anchor tags.
   const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
   let formattedMessage = message.replace(mdLinkRegex, (match, text, url) => {
