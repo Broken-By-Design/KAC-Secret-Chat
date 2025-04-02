@@ -111,8 +111,7 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
     people_online = "".join([f"{name}\n" for name in connected_usernames])
     # Build a full prompt that includes the chat history and the new message
     full_prompt = f"Users connected:\n{people_online}Here is the conversation so far:\n{chat_context}\nKAC-Bot:"
-    print(full_prompt)
-
+    
     # full_prompt = f"{user} asks: {message}"
 
     google_search_tool = types.Tool(
@@ -147,7 +146,8 @@ def handle_connect():
 def handle_disconnect():
     nickname = request.cookies.get('nickname')
     print(f"User disconnected: {nickname}")
-    connected_usernames.remove(nickname)
+    if nickname and nickname in connected_usernames:
+        connected_usernames.remove(nickname)
     # socketio.emit('user_disconnected', nickname)
 
 @socketio.on("chat_message")
