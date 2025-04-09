@@ -13,6 +13,7 @@ from google import genai
 from google.genai import types
 import binascii
 import hashlib
+from collections import defaultdict
 # import gunicorn
 
 from utils import bot_functions
@@ -44,6 +45,9 @@ current_log_file = None
 connected_usernames = []
 
 ai_prompt_history = []
+
+_image_buffers: dict[str, list[bytes]] = defaultdict(list)
+
 
 def clear_chatlogs():
     global current_log_file
@@ -294,18 +298,62 @@ def handle_image(metadata, data):
         filepath = os.path.join(images_dir, f"{id}{ext}")
         with open(filepath, 'wb') as f:
             f.write(data)
-    
-    # id = generate_random_string()
-    # _, ext = os.path.splitext(metadata.get('name'))
-
-    # filepath = os.path.join("./chatlogs/images/", f"{id}{ext}")
-    # with open(filepath, 'wb') as f:
-    #     f.write(data)
-
 
     socketio.emit('add_image', { 'id': id, 'nickname': nickname, 'timestamp': timestamp })
 
     add_chatlog_entry(id, nickname, timestamp, msg_type="image")
+
+@socketio.on('image_chunk')
+def handle_image_chunk(data):
+    temp_id = data['id']
+    chunk = data['chunk']  # this arrives as bytes
+    metadata = data['metadata']
+    is_last = data['is_last']
+    # print("recieved image chunk from: ", temp_id)
+    _image_buffers[temp_id].append(chunk)
+
+    if not is_last:
+        return
+
+    if is_last:
+        full_bytes = b''.join(_image_buffers.pop(temp_id))
+        # proceed to dedupe/hash/save like your existing handle_image
+        image_hash = hashlib.sha256(full_bytes).hexdigest()
+        image_hash = hashlib.sha256(full_bytes).hexdigest()
+        images_dir = './chatlogs/images/'
+        os.makedirs(images_dir, exist_ok=True)
+
+        existing_id = None
+        for fn in os.listdir(images_dir):
+            path = os.path.join(images_dir, fn)
+            if not os.path.isfile(path):
+                continue
+            with open(path, 'rb') as f:
+                if hashlib.sha256(f.read()).hexdigest() == image_hash:
+                    existing_id = os.path.splitext(fn)[0]
+                    break
+
+        if existing_id:
+            final_id = existing_id
+        else:
+            final_id = generate_random_string()
+            name = metadata.get('name', '')
+            _, ext = os.path.splitext(name)
+            ext = ext.lower()
+            out_path = os.path.join(images_dir, f"{final_id}{ext}")
+            with open(out_path, 'wb') as f:
+                f.write(full_bytes)
+
+
+        socketio.emit('add_image', {
+          'id': final_id,
+          'nickname': metadata['nickname'],
+          'timestamp': metadata['timestamp']
+        })
+
+        add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], msg_type="image")
+        
+
 
 @app.route('/')
 def index():
@@ -377,7 +425,7 @@ def get_image(id):
 
     # Just grab the filename without extension
     filename = os.path.splitext(id)[0]  # strips extension
-    # _, ext = os.path.splitext(id)
+    _, ext = os.path.splitext(id)
     filepath = os.path.join("./chatlogs/images/", f"{filename}")
 
     # If you want to allow files *with* extension too

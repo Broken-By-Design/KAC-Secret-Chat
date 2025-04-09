@@ -26,6 +26,7 @@ fetch("/get_chatlogs", { credentials: "include" })
 
         // Create <img> element
         const img = document.createElement('img');
+        img.loading = "lazy";
         img.id = entry.id;
         img.src = `/get_image/${entry.id}`;
         const imagePromise = new Promise((resolve, reject) => {
@@ -111,18 +112,37 @@ function formatTime(dateString) {
   });
 }
 
-function sendImage(file, nickname, timestamp) {
-  console.log(file);
-  const reader = new FileReader();
-  reader.readAsArrayBuffer(file);
-  reader.onload = () => {
-    const arrayBuffer = reader.result;
-    const metadata = { nickname, timestamp, name: file.name };
-    // Send metadata and raw bytes
-    socket.emit('send_image', metadata, arrayBuffer);
-  };
-}
+// function sendImage(file, nickname, timestamp) {
+//   const reader = new FileReader();
+//   reader.readAsArrayBuffer(file);
+//   reader.onload = () => {
+//     const arrayBuffer = reader.result;
+//     const metadata = { nickname, timestamp, name: file.name };
+//     // Send metadata and raw bytes
+//     socket.emit('send_image', metadata, arrayBuffer);
+//   };
+// }
 
+function sendImage(file, nickname, timestamp) {
+  const chunkSize = 128 * 1024;  // 64 KB
+  const reader = new FileReader();
+  reader.onload = () => {
+    const buffer = reader.result;
+    let offset = 0;
+    while (offset < buffer.byteLength) {
+      const end = Math.min(offset + chunkSize, buffer.byteLength);
+      const chunk = buffer.slice(offset, end);
+      socket.emit('image_chunk', {
+        id: file.name,                // temporary ID
+        chunk: chunk,
+        is_last: end === buffer.byteLength,
+        metadata: { nickname, timestamp, name: file.name }
+      });
+      offset = end;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 function updateTitle() {
   document.title =
@@ -156,15 +176,17 @@ function addMessage(message, nickname, timestamp) {
 function addImageMessage(id, nickname, timestamp) {
   const item = document.createElement("li");
   const img = document.createElement("img"); // Create the <img> element
+  img.loading = "lazy";
+  img.id = id;
   img.src = `/get_image/${id}`;
-  img.alt = "Image"; // Optional: Set alt text for the image
+  img.alt = id; // Optional: Set alt text for the image
 
   // Attach the image to an anchor element
   const anchor = document.createElement("a");
   anchor.href = `/get_image/${id}`;
   anchor.target = "_blank";
   anchor.rel = "noopener noreferrer";
-  anchor.appendChild(img);
+  anchor.appendChild(img);loading="lazy"
 
   // Set up onload and error handling
   const imagePromise = new Promise((resolve, reject) => {
