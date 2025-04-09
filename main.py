@@ -166,7 +166,7 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
     global ai_prompt_history
 
     
-    chat_context = load_recent_chat_context(num_messages=20)
+    # chat_context = load_recent_chat_context(num_messages=20)
 
     add_to_prompt_history_safe("user", f"Users Online: {', '.join(username for username in get_online_users())} | {user}: {message}")
     
