@@ -175,7 +175,7 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
 
     add_to_prompt_history_safe("user", f"Users Online: {', '.join(username for username in get_online_users())} | {user}: {message}")
     
-    print(ai_prompt_history)
+    # print(ai_prompt_history)
     google_search_tool = types.Tool(
        google_search = types.GoogleSearch(),
         )
