@@ -12,6 +12,7 @@ import json
 from google import genai
 from google.genai import types
 import binascii
+import hashlib
 # import gunicorn
 
 from utils import bot_functions
@@ -272,13 +273,34 @@ def handle_image(metadata, data):
     nickname = metadata.get('nickname')
     timestamp = metadata.get('timestamp')
     
-    id = generate_random_string()
-    _, ext = os.path.splitext(metadata.get('name'))
-    print(f"{id}{ext}")
+    image_hash = hashlib.sha256(data).hexdigest()
+    images_dir = './chatlogs/images/'
 
-    filepath = os.path.join("./chatlogs/images/", f"{id}{ext}")
-    with open(filepath, 'wb') as f:
-        f.write(data)
+    existing_files = os.listdir(images_dir)
+    existing_image = None
+    for filename in existing_files:
+        with open(os.path.join(images_dir, filename), 'rb') as f:
+            existing_data = f.read()
+            existing_hash = hashlib.sha256(existing_data).hexdigest()
+            if existing_hash == image_hash:
+                existing_image = filename
+                break
+
+    if existing_image:
+        id = os.path.splitext(existing_image)[0]
+    else:
+        id = generate_random_string()
+        _, ext = os.path.splitext(metadata.get('name'))
+        filepath = os.path.join(images_dir, f"{id}{ext}")
+        with open(filepath, 'wb') as f:
+            f.write(data)
+    
+    # id = generate_random_string()
+    # _, ext = os.path.splitext(metadata.get('name'))
+
+    # filepath = os.path.join("./chatlogs/images/", f"{id}{ext}")
+    # with open(filepath, 'wb') as f:
+    #     f.write(data)
 
 
     socketio.emit('add_image', { 'id': id, 'nickname': nickname, 'timestamp': timestamp })
@@ -355,6 +377,7 @@ def get_image(id):
 
     # Just grab the filename without extension
     filename = os.path.splitext(id)[0]  # strips extension
+    # _, ext = os.path.splitext(id)
     filepath = os.path.join("./chatlogs/images/", f"{filename}")
 
     # If you want to allow files *with* extension too

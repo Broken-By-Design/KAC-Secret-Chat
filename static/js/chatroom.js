@@ -144,13 +144,45 @@ function addMessage(message, nickname, timestamp) {
 }
 
 
+// function addImageMessage(id, nickname, timestamp) {
+//   const item = document.createElement("li");
+//   item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> <a href="/get_image/${id}" target="_blank" rel="noopener noreferrer"><img src="/get_image/${id}" /></a> <span id="timestamp">${formatTime(timestamp)}</span>`;
+//   messages.appendChild(item);
+//   img.onload = () => {
+//     window.scrollTo(0, document.body.scrollHeight);
+//   };
+// }
+
 function addImageMessage(id, nickname, timestamp) {
   const item = document.createElement("li");
-  item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> <a href="/get_image/${id}" target="_blank" rel="noopener noreferrer"><img src="/get_image/${id}" /></a> <span id="timestamp">${formatTime(timestamp)}</span>`;
+  const img = document.createElement("img"); // Create the <img> element
+  img.src = `/get_image/${id}`;
+  img.alt = "Image"; // Optional: Set alt text for the image
+
+  // Attach the image to an anchor element
+  const anchor = document.createElement("a");
+  anchor.href = `/get_image/${id}`;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  anchor.appendChild(img);
+
+  // Set up onload and error handling
+  const imagePromise = new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+  });
+
+  item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> `;
+  item.appendChild(anchor); // Append the anchor (with the image) to the item
+  item.innerHTML += ` <span id="timestamp">${formatTime(timestamp)}</span>`;
+
   messages.appendChild(item);
-  img.onload = () => {
+
+  imagePromise.then(() => {
     window.scrollTo(0, document.body.scrollHeight);
-  };
+  }).catch((error) => {
+    console.error('Image failed to load:', error);
+  });
 }
 
 
