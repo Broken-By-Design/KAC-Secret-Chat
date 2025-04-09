@@ -78,7 +78,7 @@ body {
   vertical-align: top;
 }
 
-#messages > li > img {
+#messages > li > a > img {
   max-width: 30vw;
   height: auto;
 }

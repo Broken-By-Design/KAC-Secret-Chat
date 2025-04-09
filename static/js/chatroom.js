@@ -1,15 +1,63 @@
-fetch("/get_chatlogs", { credentials: "include" }) // First thing
-  .then((response) => response.json())
-  .then((data) => {
-    data.forEach((entry) => {
-      if (entry.type == "image") {
-        addImageMessage(entry.message, entry.nickname, entry.timestamp);
+// fetch("/get_chatlogs", { credentials: "include" }) // First thing
+//   .then((response) => response.json())
+//   .then((data) => {
+//     data.forEach((entry) => {
+//       if (entry.type == "image") {
+//         addImageMessage(entry.id, entry.nickname, entry.timestamp);
+//       } else {
+//         addMessage(entry.message, entry.nickname, entry.timestamp);
+//       }
+//     });
+//   })
+//   .catch((error) => console.error("Error loading chat logs:", error));
+
+fetch("/get_chatlogs", { credentials: "include" })
+  .then(res => res.json())
+  .then(data => {
+    const fragment = document.createDocumentFragment();
+    const imagePromises = [];
+    data.forEach(entry => {
+      const item = document.createElement("li");
+      if (entry.type === "image") {
+        const anchor = document.createElement('a');
+        anchor.href = `/get_image/${entry.id}`;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+
+        // Create <img> element
+        const img = document.createElement('img');
+        img.id = entry.id;
+        img.src = `/get_image/${entry.id}`;
+        const imagePromise = new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;  // Handle image loading errors
+        });
+
+        // Append the image to the anchor
+        anchor.appendChild(img);
+
+        // Construct the item
+        item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}: </b>`;
+        item.appendChild(anchor);  // Append the anchor (with the image) to the item
+        item.innerHTML += ` <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
+
+        // item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}: </b> <a href="/get_image/${entry.id}" target="_blank" rel="noopener noreferrer" id="${entry.id}"></a> <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
+
+        imagePromises.push(imagePromise);
       } else {
-        addMessage(entry.message, entry.nickname, entry.timestamp);
+        const msg = linkify(entry.message);
+        item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(msg)} <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
       }
+      fragment.appendChild(item);
     });
-  })
-  .catch((error) => console.error("Error loading chat logs:", error));
+    messages.appendChild(fragment);
+    // window.scrollTo(0, document.body.scrollHeight);
+    Promise.all(imagePromises).then(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+  });
+
 
 const socket = io({
   query: {
@@ -32,6 +80,28 @@ function getCookie(name) {
   return null;
 }
 
+function linkify(text) {
+  const urlRegex = /(?:(?:https?|ftp):\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+
+  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/gi;
+
+  const replaceURL = (url) => {
+    const href = url.startsWith('http') || url.startsWith('ftp') ? url : `http://${url}`;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  };
+
+  const replaceMarkdownLink = (match, text, url) => {
+    const href = url.startsWith('http') || url.startsWith('ftp') ? url : `http://${url}`;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  };
+
+  const textWithMarkdownLinks = text.replace(markdownLinkRegex, replaceMarkdownLink);
+
+  const textWithLinks = textWithMarkdownLinks.replace(urlRegex, replaceURL);
+
+  return textWithLinks;
+}
+
 function formatTime(dateString) {
   const date = new Date(dateString);
   return date.toLocaleTimeString("en-US", {
@@ -42,11 +112,14 @@ function formatTime(dateString) {
 }
 
 function sendImage(file, nickname, timestamp) {
+  console.log(file);
   const reader = new FileReader();
-  reader.readAsDataURL(file); // Convert image to Base64
-  reader.onload = function () {
-    console.log(reader.result);
-      socket.emit('send_image', { image: reader.result, nickname: nickname, timestamp: timestamp });
+  reader.readAsArrayBuffer(file);
+  reader.onload = () => {
+    const arrayBuffer = reader.result;
+    const metadata = { nickname, timestamp, name: file.name };
+    // Send metadata and raw bytes
+    socket.emit('send_image', metadata, arrayBuffer);
   };
 }
 
@@ -61,33 +134,23 @@ function addMessage(message, nickname, timestamp) {
   if (!nickname) return;
   if (!timestamp) return;
 
-  // First, convert Markdown links [text](url) to HTML anchor tags.
-  const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
-  let formattedMessage = message.replace(mdLinkRegex, (match, text, url) => {
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-  });
-
-  // Then, as a fallback, replace any plain URLs with anchor tags.
-  // const urlRegex = /(https?:\/\/[^\s]+)/g;
-  // const urlRegex = /(?<!href=")(https?:\/\/[^\s<]+)/g;
-  const urlRegex = /(^|\s)(https?:\/\/[^\s<]+)/g;
-  formattedMessage = formattedMessage.replace(urlRegex, (url) => {
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-  });
+  const formattedMessage = linkify(message);
 
   const item = document.createElement("li");
   // Note: Make sure your sanitizer is configured to allow <a> tags, or you might see your anchors stripped out.
-  item.innerHTML = `<b>${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
+  item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
   window.scrollTo(0, document.body.scrollHeight);
 }
 
 
-function addImageMessage(image, nickname, timestamp) {
+function addImageMessage(id, nickname, timestamp) {
   const item = document.createElement("li");
-  item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> <img src="${image}" /> <span id="timestamp">${formatTime(timestamp)}</span>`;
+  item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> <a href="/get_image/${id}" target="_blank" rel="noopener noreferrer"><img src="/get_image/${id}" /></a> <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
-  window.scrollTo(0, document.body.scrollHeight);
+  img.onload = () => {
+    window.scrollTo(0, document.body.scrollHeight);
+  };
 }
 
 
@@ -116,14 +179,14 @@ form.addEventListener("submit", (e) => {
   }
 });
 
-// document.getElementById("openFile").addEventListener("click", function () {
-//   document.getElementById("fileInput").click();
-// });
+document.getElementById("openFile").addEventListener("click", function () {
+  document.getElementById("fileInput").click();
+});
 
-// document.getElementById("fileInput").addEventListener("change", function (event) {
-//   let file = event.target.files[0];
-//   sendImage(file, getCookie("nickname"), new Date().toISOString());
-// });
+document.getElementById("fileInput").addEventListener("change", function (event) {
+  let file = event.target.files[0];
+  sendImage(file, getCookie("nickname"), new Date().toISOString());
+});
 
 socket.on("chat_message", (msg) => {
   addMessage(msg.message, msg.nickname, msg.timestamp);
@@ -137,8 +200,8 @@ socket.on("clear_chat", () => {
   messages.innerHTML = "";
 });
 
-socket.on('send_image', (data) => {
-  addImageMessage(data.image, data.nickname, data.timestamp);
+socket.on('add_image', (data) => {
+  addImageMessage(data.id, data.nickname, data.timestamp);
   if (document.hidden) {
     missedCount++;
     updateTitle();
