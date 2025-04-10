@@ -124,7 +124,7 @@ function formatTime(dateString) {
 // }
 
 function sendImage(file, nickname, timestamp) {
-  const chunkSize = 128 * 1024;  // 64 KB
+  const chunkSize = 256 * 1024;  // 256 KB
   const reader = new FileReader();
   reader.onload = () => {
     const buffer = reader.result;

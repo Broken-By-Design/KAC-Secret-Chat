@@ -174,16 +174,43 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
     # chat_context = load_recent_chat_context(num_messages=20)
 
     add_to_prompt_history_safe("user", f"Users Online: {', '.join(username for username in get_online_users())} | {user}: {message}")
+
+    # print(f"Responding to {message}...", end="")
     
     # print(ai_prompt_history)
     google_search_tool = types.Tool(
        google_search = types.GoogleSearch(),
         )
 
+    # safety_setting_list = [
+    #     types.SafetySetting(
+    #         category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+    #         threshold=types.HarmBlockThreshold.BLOCK_NONE,
+    #     ),
+    #     types.SafetySetting(
+    #         category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    #         threshold=types.HarmBlockThreshold.BLOCK_NONE,
+    #     ),
+    #     types.SafetySetting(
+    #         category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    #         threshold=types.HarmBlockThreshold.BLOCK_NONE,
+    #     ),
+    #     types.SafetySetting(
+    #         category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    #         threshold=types.HarmBlockThreshold.BLOCK_NONE,
+    #     ),
+    #     # types.SafetySetting(
+    #     #     category=types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+    #     #     threshold=types.HarmBlockThreshold.HARM_BLOCK_THRESHOLD_UNSPECIFIED,
+    #     # ),
+    #   ]
+
+
     generate_content_config = types.GenerateContentConfig(
             system_instruction=ai_personality,
             tools=[google_search_tool] if enable_google_search else [],
             response_modalities=["TEXT"],
+            # safety_settings=safety_setting_list,
         )
 
     response = ai_client.models.generate_content(
@@ -192,9 +219,15 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         contents=ai_prompt_history,
     )
 
+    # print(f"Done!\tResponse: {response.text}")
+
     add_to_prompt_history_safe("model", response.text)
 
-    return response.text
+    if response.text:
+        return response.text
+    else:
+        print(response)
+        return "Failed to generate a response. If you are a developer please check the logs."
 
     # tool_call = response.candidates[0].content.parts[0].function_call
 
