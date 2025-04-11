@@ -173,7 +173,7 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
     
     # chat_context = load_recent_chat_context(num_messages=20)
 
-    add_to_prompt_history_safe("user", f"Users Online: {', '.join(username for username in get_online_users())} | {user}: {message}")
+    # add_to_prompt_history_safe("user", f"Users Online: {', '.join(username for username in get_online_users())} | {user}: {message}")
 
     # print(f"Responding to {message}...", end="")
     
@@ -293,6 +293,8 @@ def handle_chat_message(data):
 
     add_chatlog_entry(message, nickname, timestamp)
 
+    add_to_prompt_history_safe("user", f"Users Online: {', '.join(username for username in get_online_users())} | {nickname}: {message}")
+
     if message.startswith("!bot "):
         message = generate_response(message, user=nickname) # .removeprefix("!bot ")?
         # message = 
@@ -304,37 +306,84 @@ def handle_chat_message(data):
         # socketio.emit('clear_chat', {}, to)
         socketio.emit('clear_chat', room=request.sid)
 
-@socketio.on("send_image")
-def handle_image(metadata, data):
-    message = metadata.get('message')
-    nickname = metadata.get('nickname')
-    timestamp = metadata.get('timestamp')
+# @socketio.on("send_image")
+# def handle_image(metadata, data):
+#     message = metadata.get('message')
+#     nickname = metadata.get('nickname')
+#     timestamp = metadata.get('timestamp')
     
-    image_hash = hashlib.sha256(data).hexdigest()
+#     image_hash = hashlib.sha256(data).hexdigest()
+#     images_dir = './chatlogs/images/'
+
+#     existing_files = os.listdir(images_dir)
+#     existing_image = None
+#     for filename in existing_files:
+#         with open(os.path.join(images_dir, filename), 'rb') as f:
+#             existing_data = f.read()
+#             existing_hash = hashlib.sha256(existing_data).hexdigest()
+#             if existing_hash == image_hash:
+#                 existing_image = filename
+#                 break
+
+#     if existing_image:
+#         id = os.path.splitext(existing_image)[0]
+#     else:
+#         id = generate_random_string()
+#         _, ext = os.path.splitext(metadata.get('name'))
+#         filepath = os.path.join(images_dir, f"{id}{ext}")
+#         with open(filepath, 'wb') as f:
+#             f.write(data)
+
+#     socketio.emit('add_image', { 'id': id, 'nickname': nickname, 'timestamp': timestamp })
+
+#     add_chatlog_entry(id, nickname, timestamp, msg_type="image")
+
+@socketio.on('image_chunk')
+def handle_image_chunk(data):
+    # Quickly stash the chunk and return
+    temp_id = data['id']
+    chunk = data['chunk']
+    _image_buffers[temp_id].append(chunk)
+
+    if data['is_last']:
+        # offload the final assembly + disk I/O to a background greenlet
+        socketio.start_background_task(
+            assemble_and_emit_image, temp_id, data['metadata']
+        )
+
+def assemble_and_emit_image(temp_id, metadata):
+    # join all the chunks
+    full_bytes = b''.join(_image_buffers.pop(temp_id, []))
+
+    # dedupe / hash / write to disk
+    image_hash = hashlib.sha256(full_bytes).hexdigest()
     images_dir = './chatlogs/images/'
+    os.makedirs(images_dir, exist_ok=True)
 
-    existing_files = os.listdir(images_dir)
-    existing_image = None
-    for filename in existing_files:
-        with open(os.path.join(images_dir, filename), 'rb') as f:
-            existing_data = f.read()
-            existing_hash = hashlib.sha256(existing_data).hexdigest()
-            if existing_hash == image_hash:
-                existing_image = filename
-                break
+    # see if it already exists
+    existing_id = None
+    for fn in os.listdir(images_dir):
+        path = os.path.join(images_dir, fn)
+        if os.path.isfile(path) and hashlib.sha256(open(path, 'rb').read()).hexdigest() == image_hash:
+            existing_id = os.path.splitext(fn)[0]
+            break
 
-    if existing_image:
-        id = os.path.splitext(existing_image)[0]
-    else:
-        id = generate_random_string()
-        _, ext = os.path.splitext(metadata.get('name'))
-        filepath = os.path.join(images_dir, f"{id}{ext}")
-        with open(filepath, 'wb') as f:
-            f.write(data)
+    final_id = existing_id or generate_random_string()
+    if not existing_id:
+        _, ext = os.path.splitext(metadata.get('name', ''))
+        ext = ext.lower() or '.png'
+        out_path = os.path.join(images_dir, f"{final_id}{ext}")
+        with open(out_path, 'wb') as f:
+            f.write(full_bytes)
 
-    socketio.emit('add_image', { 'id': id, 'nickname': nickname, 'timestamp': timestamp })
+    # emit the event once the image is saved
+    socketio.emit('add_image', {
+        'id': final_id,
+        'nickname': metadata['nickname'],
+        'timestamp': metadata['timestamp']
+    })
 
-    add_chatlog_entry(id, nickname, timestamp, msg_type="image")
+    add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], msg_type="image")
 
 @socketio.on('image_chunk')
 def handle_image_chunk(data):
