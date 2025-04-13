@@ -14,7 +14,7 @@ from google.genai import types
 import binascii
 import hashlib
 from collections import defaultdict
-# import gunicorn
+# import asyncio
 
 from utils import bot_functions
 
@@ -23,6 +23,8 @@ from utils import bot_functions
 from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify, send_file
 from flask_socketio import SocketIO
 
+from utils.helpers import *
+
 
 load_dotenv()
 
@@ -30,7 +32,7 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "P%22%3BgzPe%5Ck%5D%3BgV-%7B%255TGSPYX%40OE7%5C.%40JsSuuoxHR%3A%3C1yBR%21N%28mm")
 
-socketio = SocketIO(app, async_mode="eventlet")
+socketio = SocketIO(app, async_mode="eventlet", async_handlers=True)
 
 app.config['CHAT_SECRET_KEY'] = os.getenv("CHAT_SECRET_KEY", None)
 app.config['GEMINI_API_KEY'] = os.getenv("GEMINI_API_KEY", None)
@@ -43,6 +45,8 @@ with open("ai_personality.txt", "r") as f:
 current_log_file = None
 
 connected_usernames = []
+
+typing_users = set()
 
 ai_prompt_history = []
 
@@ -69,44 +73,31 @@ def clear_chatlogs():
 
     print(f"New log file created: {current_log_file}")
 
-def add_chatlog_entry(message, nickname, timestamp, msg_type: str = "text"):
+def add_chatlog_entry(message, nickname, timestamp, type: str = "text"):
     global current_log_file
-    # # Ensure current_log_file is set. If not, try to initialize it.
-    # if not current_log_file:
-    #     print("Warning: current_log_file was None, reinitializing chatlog status.")
-    #     check_chatlog_status()
-    #     if not current_log_file:
-    #         print("Error: Unable to set current_log_file. Chatlog entry not added.")
-    #         return
 
     chatlogs = []
 
     if os.path.exists(current_log_file):
         with open(current_log_file, 'r') as f:
             chatlogs = json.load(f)
-    if msg_type == "image":
+    if type == "image":
         chatlogs.append({
             'id': message,
             'nickname': nickname,
             'timestamp': timestamp,
-            'type': msg_type
+            'type': type
         })
     else:
         chatlogs.append({
             'message': message,
             'nickname': nickname,
             'timestamp': timestamp,
-            'type': msg_type
+            'type': type
         })
 
     with open(current_log_file, 'w') as f:
         json.dump(chatlogs, f)
-
-def generate_random_string():
-
-    random_hex = binascii.hexlify(os.urandom(16)).decode('ascii')
-    
-    return f"{random_hex}"
 
 def schedule_task():
     schedule.every().day.at("00:00").do(clear_chatlogs)
@@ -142,16 +133,17 @@ def load_recent_chat_context_dict(num_messages=10):
 def add_to_prompt_history_safe(role: str, text: str):
     global ai_prompt_history
 
-    if len(ai_prompt_history) < 20:
+    if len(ai_prompt_history) <= 20:
         ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
     else:
         ai_prompt_history.pop(0)
         ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
 
-def get_online_users() -> list[str]:
-    global connected_usernames
-    # print("Getting online users")
-    return connected_usernames
+# def get_online_users() -> list[str]:
+#     global connected_usernames
+#     # print("Getting online users")
+#     # return connected_usernames
+#     return list(set(connected_usernames))
 
 def initialize_ai_history_from_log(num_messages=20):
     global ai_prompt_history
@@ -276,6 +268,10 @@ def handle_disconnect():
     print(f"User disconnected: {nickname}")
     if nickname and nickname in connected_usernames:
         connected_usernames.remove(nickname)
+
+    if nickname and nickname in typing_users:
+        typing_users.remove(nickname)
+        socketio.emit('typing_update', {'users': list(typing_users)})
     # socketio.emit('user_disconnected', nickname)
 
 @socketio.on("chat_message")
@@ -289,11 +285,18 @@ def handle_chat_message(data):
         socketio.emit('clear_chat', room=request.sid)
         return
 
+    if message.startswith("/highlight"):
+        message = message.removeprefix("/highlight ")
+        if message:
+            socketio.emit('chat_message', { 'message': message, 'nickname': nickname, 'timestamp': timestamp, 'highlight': True })
+            add_chatlog_entry(message, nickname, timestamp, type="highlight")
+            return
+
     socketio.emit('chat_message', { 'message': message, 'nickname': nickname, 'timestamp': timestamp })
 
     add_chatlog_entry(message, nickname, timestamp)
 
-    add_to_prompt_history_safe("user", f"Users Online: {', '.join(username for username in get_online_users())} | {nickname}: {message}")
+    add_to_prompt_history_safe("user", f"{nickname}: {message}")
 
     if message.startswith("!bot "):
         message = generate_response(message, user=nickname) # .removeprefix("!bot ")?
@@ -302,41 +305,23 @@ def handle_chat_message(data):
         socketio.emit('chat_message', { 'message': message, 'nickname': "KAC-Bot", 'timestamp': timestamp })
         add_chatlog_entry(message, "KAC-Bot", timestamp)
 
-    if message == "/clear":
+    if message.startswith("/clear"):
         # socketio.emit('clear_chat', {}, to)
         socketio.emit('clear_chat', room=request.sid)
 
-# @socketio.on("send_image")
-# def handle_image(metadata, data):
-#     message = metadata.get('message')
-#     nickname = metadata.get('nickname')
-#     timestamp = metadata.get('timestamp')
+    if message.startswith("/online"):
+        online_users = get_online_users(connected_usernames)
+        socketio.emit('chat_message', { 'message': f"{nickname}, The users online are: {', '.join(online_user for online_users in online_users[:-1])}{' and' if len(online_users) > 1 else ''} {online_users[-1]}", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
+        eventlet.sleep(0.7)
+        add_chatlog_entry(f"{nickname}, The users online are: {', '.join(online_user for online_users in online_users[:-1])}{' and' if len(online_users) > 1 else ''} {online_users[-1]}", "KAC-Bot", timestamp, type="system")
     
-#     image_hash = hashlib.sha256(data).hexdigest()
-#     images_dir = './chatlogs/images/'
+    if message.startswith("/help"):
+        socketio.emit('chat_message', { 'message': f"{nickname}, The commands are: !bot <message>, /clear, /online, and /hightlight <message>", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
+        eventlet.sleep(0.7)
+        add_chatlog_entry(f"{nickname}, The commands are: !bot <message>, /clear, /online, and /hightlight <message>", "KAC-Bot", timestamp, type="system")
+    
+    
 
-#     existing_files = os.listdir(images_dir)
-#     existing_image = None
-#     for filename in existing_files:
-#         with open(os.path.join(images_dir, filename), 'rb') as f:
-#             existing_data = f.read()
-#             existing_hash = hashlib.sha256(existing_data).hexdigest()
-#             if existing_hash == image_hash:
-#                 existing_image = filename
-#                 break
-
-#     if existing_image:
-#         id = os.path.splitext(existing_image)[0]
-#     else:
-#         id = generate_random_string()
-#         _, ext = os.path.splitext(metadata.get('name'))
-#         filepath = os.path.join(images_dir, f"{id}{ext}")
-#         with open(filepath, 'wb') as f:
-#             f.write(data)
-
-#     socketio.emit('add_image', { 'id': id, 'nickname': nickname, 'timestamp': timestamp })
-
-#     add_chatlog_entry(id, nickname, timestamp, msg_type="image")
 
 @socketio.on('image_chunk')
 def handle_image_chunk(data):
@@ -383,59 +368,74 @@ def assemble_and_emit_image(temp_id, metadata):
         'timestamp': metadata['timestamp']
     })
 
-    add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], msg_type="image")
-
-@socketio.on('image_chunk')
-def handle_image_chunk(data):
-    temp_id = data['id']
-    chunk = data['chunk']  # this arrives as bytes
-    metadata = data['metadata']
-    is_last = data['is_last']
-    # print("recieved image chunk from: ", temp_id)
-    _image_buffers[temp_id].append(chunk)
-
-    if not is_last:
-        return
-
-    if is_last:
-        full_bytes = b''.join(_image_buffers.pop(temp_id))
-        # proceed to dedupe/hash/save like your existing handle_image
-        image_hash = hashlib.sha256(full_bytes).hexdigest()
-        image_hash = hashlib.sha256(full_bytes).hexdigest()
-        images_dir = './chatlogs/images/'
-        os.makedirs(images_dir, exist_ok=True)
-
-        existing_id = None
-        for fn in os.listdir(images_dir):
-            path = os.path.join(images_dir, fn)
-            if not os.path.isfile(path):
-                continue
-            with open(path, 'rb') as f:
-                if hashlib.sha256(f.read()).hexdigest() == image_hash:
-                    existing_id = os.path.splitext(fn)[0]
-                    break
-
-        if existing_id:
-            final_id = existing_id
-        else:
-            final_id = generate_random_string()
-            name = metadata.get('name', '')
-            _, ext = os.path.splitext(name)
-            ext = ext.lower()
-            out_path = os.path.join(images_dir, f"{final_id}{ext}")
-            with open(out_path, 'wb') as f:
-                f.write(full_bytes)
+    add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], type="image")
+    add_to_prompt_history_safe("user", f"{nickname}: sent an image.")
 
 
-        socketio.emit('add_image', {
-          'id': final_id,
-          'nickname': metadata['nickname'],
-          'timestamp': metadata['timestamp']
-        })
+# @socketio.on('image_chunk')
+# def handle_image_chunk(data):
+#     temp_id = data['id']
+#     chunk = data['chunk']  # this arrives as bytes
+#     metadata = data['metadata']
+#     is_last = data['is_last']
+#     # print("recieved image chunk from: ", temp_id)
+#     _image_buffers[temp_id].append(chunk)
 
-        add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], msg_type="image")
-        
+#     if not is_last:
+#         return
 
+#     if is_last:
+#         full_bytes = b''.join(_image_buffers.pop(temp_id))
+#         # proceed to dedupe/hash/save like your existing handle_image
+#         image_hash = hashlib.sha256(full_bytes).hexdigest()
+#         image_hash = hashlib.sha256(full_bytes).hexdigest()
+#         images_dir = './chatlogs/images/'
+#         os.makedirs(images_dir, exist_ok=True)
+
+#         existing_id = None
+#         for fn in os.listdir(images_dir):
+#             path = os.path.join(images_dir, fn)
+#             if not os.path.isfile(path):
+#                 continue
+#             with open(path, 'rb') as f:
+#                 if hashlib.sha256(f.read()).hexdigest() == image_hash:
+#                     existing_id = os.path.splitext(fn)[0]
+#                     break
+
+#         if existing_id:
+#             final_id = existing_id
+#         else:
+#             final_id = generate_random_string()
+#             name = metadata.get('name', '')
+#             _, ext = os.path.splitext(name)
+#             ext = ext.lower()
+#             out_path = os.path.join(images_dir, f"{final_id}{ext}")
+#             with open(out_path, 'wb') as f:
+#                 f.write(full_bytes)
+
+
+#         socketio.emit('add_image', {
+#           'id': final_id,
+#           'nickname': metadata['nickname'],
+#           'timestamp': metadata['timestamp']
+#         })
+
+#         add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], type="image")
+
+@socketio.on('typing')
+def handle_typing(data):
+    nickname = data.get('nickname')
+    if nickname:
+        typing_users.add(nickname)
+        # Broadcast updated list
+        socketio.emit('typing_update', {'users': list(typing_users)})
+
+@socketio.on('stop_typing')
+def handle_stop_typing(data):
+    nickname = data.get('nickname')
+    if nickname and nickname in typing_users:
+        typing_users.remove(nickname)
+        socketio.emit('typing_update', {'users': list(typing_users)})
 
 @app.route('/')
 def index():
@@ -497,7 +497,7 @@ def get_connected_users():
     acceptance_cookie = request.cookies.get('acceptance_cookie')
     if (not acceptance_cookie) or (acceptance_cookie != app.config['CHAT_SECRET_KEY']):
             return "Unauthorized", 401
-    return jsonify(connected_usernames)
+    return jsonify(get_connected_users(connected_usernames))
 
 @app.route('/get_image/<path:id>', methods=['GET'])
 def get_image(id):

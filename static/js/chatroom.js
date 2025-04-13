@@ -1,15 +1,6 @@
-// fetch("/get_chatlogs", { credentials: "include" }) // First thing
-//   .then((response) => response.json())
-//   .then((data) => {
-//     data.forEach((entry) => {
-//       if (entry.type == "image") {
-//         addImageMessage(entry.id, entry.nickname, entry.timestamp);
-//       } else {
-//         addMessage(entry.message, entry.nickname, entry.timestamp);
-//       }
-//     });
-//   })
-//   .catch((error) => console.error("Error loading chat logs:", error));
+const form = document.getElementById("form");
+const input = document.getElementById("input");
+const messages = document.getElementById("messages");
 
 fetch("/get_chatlogs", { credentials: "include" })
   .then(res => res.json())
@@ -17,6 +8,15 @@ fetch("/get_chatlogs", { credentials: "include" })
     const fragment = document.createDocumentFragment();
     const imagePromises = [];
     data.forEach(entry => {
+      if (entry == null ||
+          entry.type == null ||
+          entry.nickname == null ||
+          entry.timestamp == null ||
+          (entry.type !== "image" && entry.message == null)
+        ) {
+        console.log("Invalid entry:", entry);
+        return;
+      }
       const item = document.createElement("li");
       if (entry.type === "image") {
         const anchor = document.createElement('a');
@@ -45,11 +45,18 @@ fetch("/get_chatlogs", { credentials: "include" })
         // item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}: </b> <a href="/get_image/${entry.id}" target="_blank" rel="noopener noreferrer" id="${entry.id}"></a> <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
 
         imagePromises.push(imagePromise);
+        messages.appendChild(item);
+      } else if (entry.type === "highlight") {
+        addHighlightedMessage(entry.message, entry.nickname, entry.timestamp);
+      } else if (entry.type === "system") {
+        console.log("Adding system message:", entry);
+        addSystemMessage(entry.message, entry.nickname, entry.timestamp);
       } else {
-        const msg = linkify(entry.message);
-        item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(msg)} <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
+        addMessage(entry.message, entry.nickname, entry.timestamp);
+        // const msg = linkify(entry.message);
+        // item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(msg)} <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
       }
-      fragment.appendChild(item);
+      // fragment.appendChild(item);
     });
     messages.appendChild(fragment);
     // window.scrollTo(0, document.body.scrollHeight);
@@ -67,8 +74,12 @@ const socket = io({
 });
 
 
-let missedCount = 0; // Count of messages received while tab is unfocused
-const originalTitle = document.title; // Save the original tab title
+let typing = false;
+let lastTypingTime = 0;
+const TYPING_TIMER_LENGTH = 2000; // 2 seconds
+
+let missedCount = 0;
+const originalTitle = document.title;
 
 function getCookie(name) {
   const cookies = document.cookie.split(";");
@@ -82,26 +93,31 @@ function getCookie(name) {
 }
 
 function linkify(text) {
+  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/gi;
   const urlRegex = /(?:(?:https?|ftp):\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
 
-  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/gi;
+  // 1. Convert Markdown links to <a> first
+  const html = text.replace(markdownLinkRegex, (_, txt, url) => {
+    const href = /^(?:https?|ftp):\/\//i.test(url) ? url : `http://${url}`;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${txt}</a>`;
+  });
 
-  const replaceURL = (url) => {
-    const href = url.startsWith('http') || url.startsWith('ftp') ? url : `http://${url}`;
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-  };
+  // 2. Split on <a>…</a> so we don't re-link URLs inside them
+  const parts = html.split(/(<a\b[^>]*>[\s\S]*?<\/a>)/gi);
 
-  const replaceMarkdownLink = (match, text, url) => {
-    const href = url.startsWith('http') || url.startsWith('ftp') ? url : `http://${url}`;
-    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-  };
+  // 3. Replace URLs only in the non-<a> parts
+  for (let i = 0; i < parts.length; i++) {
+    if (!parts[i].startsWith('<a')) {
+      parts[i] = parts[i].replace(urlRegex, (url) => {
+        const href = /^(?:https?|ftp):\/\//i.test(url) ? url : `http://${url}`;
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+      });
+    }
+  }
 
-  const textWithMarkdownLinks = text.replace(markdownLinkRegex, replaceMarkdownLink);
-
-  const textWithLinks = textWithMarkdownLinks.replace(urlRegex, replaceURL);
-
-  return textWithLinks;
+  return parts.join('');
 }
+
 
 function formatTime(dateString) {
   const date = new Date(dateString);
@@ -144,6 +160,71 @@ function sendImage(file, nickname, timestamp) {
   reader.readAsArrayBuffer(file);
 }
 
+function chunkAndEmit(buffer, id, nickname, timestamp) {
+  const chunkSize = 256 * 1024; // 256 KB
+  let offset = 0;
+  while (offset < buffer.byteLength) {
+    const end = Math.min(offset + chunkSize, buffer.byteLength);
+    const chunk = buffer.slice(offset, end);
+    socket.emit('image_chunk', {
+      id,                 // file name or UUID
+      chunk,
+      is_last: end === buffer.byteLength,
+      metadata: { nickname, timestamp, name: id }
+    });
+    offset = end;
+  }
+}
+
+async function compressAndSendImage(file, nickname, timestamp) {
+
+  if (file.type === 'image/gif' || file.type === 'image/svg+xml') {
+    const buffer = await file.arrayBuffer();
+    return chunkAndEmit(buffer, file.name, nickname, timestamp);
+  }
+
+  // 1) Load the image into an off‑screen <img>
+  const img = await new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = rej;
+    i.src = URL.createObjectURL(file);
+  });
+
+  // 2) Draw it to a canvas at its original dimensions
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+
+  // 3) Export to a Blob with quality parameter (0–1)
+  //    JPEG or WebP; WebP generally smaller but check browser support
+  const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  const quality = 0.7; // tweak this: lower = smaller file, more artifacts
+  const compressedBlob = await new Promise(res =>
+    canvas.toBlob(res, mimeType, quality)
+  );
+
+  // 4) Read the compressed Blob as ArrayBuffer
+  const buffer = await compressedBlob.arrayBuffer();
+
+  // 5) Chunk & send exactly like your existing sendImage()
+  const chunkSize = 256 * 1024;
+  let offset = 0;
+  while (offset < buffer.byteLength) {
+    const end = Math.min(offset + chunkSize, buffer.byteLength);
+    const chunk = buffer.slice(offset, end);
+    socket.emit('image_chunk', {
+      id: file.name, // or generate a UUID
+      chunk,
+      is_last: end === buffer.byteLength,
+      metadata: { nickname, timestamp, name: file.name }
+    });
+    offset = end;
+  }
+}
+
 function updateTitle() {
   document.title =
     missedCount > 0 ? `(${missedCount}) ${originalTitle}` : originalTitle;
@@ -159,6 +240,36 @@ function addMessage(message, nickname, timestamp) {
   const item = document.createElement("li");
   // Note: Make sure your sanitizer is configured to allow <a> tags, or you might see your anchors stripped out.
   item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
+  messages.appendChild(item);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+function addHighlightedMessage(message, nickname, timestamp) {
+  if (!message) return;
+  if (!nickname) return;
+  if (!timestamp) return;
+
+  const formattedMessage = linkify(message);
+
+  const item = document.createElement("li");
+
+  item.classList.add("highlight");
+  // Note: Make sure your sanitizer is configured to allow <a> tags, or you might see your anchors stripped out.
+  item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
+  messages.appendChild(item);
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+function addSystemMessage(message, nickname, timestamp) {
+  if (!message) return;
+  if (!nickname) return;
+  if (!timestamp) return;
+
+  const formattedMessage = linkify(message);
+
+  const item = document.createElement("li");
+  // Note: Make sure your sanitizer is configured to allow <a> tags, or you might see your anchors stripped out.
+  item.innerHTML = `<b id="nickname">${nickname}:</b> ${formattedMessage} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
   window.scrollTo(0, document.body.scrollHeight);
 }
@@ -207,6 +318,28 @@ function addImageMessage(id, nickname, timestamp) {
   });
 }
 
+input.addEventListener('input', () => {
+  if (!typing) {
+    typing = true;
+    socket.emit('typing', { nickname: getCookie('nickname') });
+  }
+  lastTypingTime = Date.now();
+
+  setTimeout(() => {
+    const timeDiff = Date.now() - lastTypingTime;
+    if (typing && timeDiff >= TYPING_TIMER_LENGTH) {
+      socket.emit('stop_typing', { nickname: getCookie('nickname') });
+      typing = false;
+    }
+  }, TYPING_TIMER_LENGTH);
+});
+
+input.addEventListener('blur', () => {
+  if (typing) {
+    socket.emit('stop_typing', { nickname: getCookie('nickname') });
+    typing = false;
+  }
+});
 
 window.addEventListener("focus", () => {
   missedCount = 0;
@@ -217,12 +350,12 @@ socket.on("connect", function () {
   console.log("Connection Established");
 });
 
-const form = document.getElementById("form");
-const input = document.getElementById("input");
-const messages = document.getElementById("messages");
-
 form.addEventListener("submit", (e) => {
   e.preventDefault();
+  if (typing) {
+    socket.emit('stop_typing', { nickname: getCookie('nickname') });
+    typing = false;
+  }
   if (input.value) {
     socket.emit("chat_message", {
       message: input.value,
@@ -239,11 +372,18 @@ document.getElementById("openFile").addEventListener("click", function () {
 
 document.getElementById("fileInput").addEventListener("change", function (event) {
   let file = event.target.files[0];
-  sendImage(file, getCookie("nickname"), new Date().toISOString());
+  // sendImage(file, getCookie("nickname"), new Date().toISOString());
+  compressAndSendImage(file, getCookie("nickname"), new Date().toISOString());
 });
 
 socket.on("chat_message", (msg) => {
-  addMessage(msg.message, msg.nickname, msg.timestamp);
+  if (msg.highlight) {
+    addHighlightedMessage(msg.message, msg.nickname, msg.timestamp);
+  } else if (msg.system) {
+    addSystemMessage(msg.message, msg.nickname, msg.timestamp);
+  } else {
+    addMessage(msg.message, msg.nickname, msg.timestamp);
+  }
   if (document.hidden) {
     missedCount++;
     updateTitle();
@@ -267,4 +407,31 @@ socket.on("user_connected", (nickname) => {
   item.innerHTML = `Welcome! <b>${HtmlSanitizer.SanitizeHtml(nickname)}</b> has joined the chat.`;
   messages.appendChild(item);
   window.scrollTo(0, document.body.scrollHeight);
+});
+
+const typingIndicator = document.getElementById('typing');
+
+socket.on('typing_update', ({ users }) => {
+  // users is an array of nicknames currently typing
+  if (users.length === 0) {
+    typingIndicator.innerHTML = '';
+    typingIndicator.style.display = 'none';
+    return;
+  } else {
+    typingIndicator.style.display = 'block';
+  }
+
+  let text = '';
+  if (users.length === 1) {
+    text = `<b>${HtmlSanitizer.SanitizeHtml(users[0])}</b> is typing…`;
+  } else if (users.length === 2) {
+    text = `<b>${HtmlSanitizer.SanitizeHtml(users[0])}</b> and <b>${HtmlSanitizer.SanitizeHtml(users[1])}</b> are typing…`;
+  } else {
+    const last = users.pop();
+    // text = `${users.join(', ')}, and ${last} are typing…`;
+    const text = `${users.map(u => `<b>${HtmlSanitizer.SanitizeHtml(u)}</b>`).join(', ')}, and <b>${HtmlSanitizer.SanitizeHtml(last)}</b> are typing…`;
+
+  }
+
+  typingIndicator.innerHTML = `${text}`;
 });

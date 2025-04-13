@@ -35,6 +35,20 @@ body {
   box-sizing: border-box;
   backdrop-filter: blur(10px);
 }
+
+#typing {
+  position: absolute;
+  top: -1.5rem;      /* tweak as needed to sit above */
+  left: 1rem;        /* align with your input or button */
+  z-index: 2;        /* higher than form’s contents */
+  background: rgba(0,0,0,0.6); /* optional: make it pop */
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.3rem;
+  font-size: 0.9rem;
+  pointer-events: none; /* so clicks “pass through” */
+  color: #ccc;
+}
+
 #input {
   background: #272727;
   border: none;
@@ -81,6 +95,27 @@ body {
 #messages > li > a > img {
   max-width: 30vw;
   height: auto;
+}
+
+#messages > li > a {
+  color: #00bcd4;  /* Soft cyan */
+}
+
+#messages > li > a:hover {
+  color: #ff4081;  /* A soft pink on hover */
+}
+
+#messages > li > a:visited {
+  color: #80deea;  /* Lighter cyan for visited links */
+}
+
+#messages > li.highlight {
+  background-color: rgba(255, 69, 0, 0.2); /* fiery orange translucent bg */
+  border-left: 4px solid #ff4500;          /* thick orange bar on the left */
+  padding: 0.5rem 1rem;                    /* give it some breathing room */
+  margin: 0.5rem 0;                        /* separate from other msgs */
+  border-radius: 0.5rem;                   /* smooth ass corners */
+  animation: pulse 2s infinite ease-in-out;/* subtle pulse so it’s not dead */
 }
 
 #openFile {
