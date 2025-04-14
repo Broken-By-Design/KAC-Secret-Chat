@@ -311,9 +311,9 @@ def handle_chat_message(data):
 
     if message.startswith("/online"):
         online_users = get_online_users(connected_usernames)
-        socketio.emit('chat_message', { 'message': f"{nickname}, The users online are: {', '.join(online_user for online_users in online_users[:-1])}{' and' if len(online_users) > 1 else ''} {online_users[-1]}", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
+        socketio.emit('chat_message', { 'message': f"{nickname}, The users online are: {', '.join(online_user for online_user in online_users[:-1])}{' and' if len(online_users) > 1 else ''} {online_users[-1]}", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
         eventlet.sleep(0.7)
-        add_chatlog_entry(f"{nickname}, The users online are: {', '.join(online_user for online_users in online_users[:-1])}{' and' if len(online_users) > 1 else ''} {online_users[-1]}", "KAC-Bot", timestamp, type="system")
+        add_chatlog_entry(f"{nickname}, The users online are: {', '.join(online_user for online_user in online_users[:-1])}{' and' if len(online_users) > 1 else ''} {online_users[-1]}", "KAC-Bot", timestamp, type="system")
     
     if message.startswith("/help"):
         socketio.emit('chat_message', { 'message': f"{nickname}, The commands are: !bot <message>, /clear, /online, and /hightlight <message>", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
