@@ -139,3 +139,20 @@ body {
   right: 10px;
   bottom: 10px;
 }
+
+
+#typing::after {
+  content: '...';
+  display: inline-block;
+  animation: ellipsis-anim 1.4s infinite;
+  vertical-align: bottom;
+  width: 1.2em;
+  text-align: left;
+}
+
+@keyframes ellipsis-anim {
+  0% { content: '.'; }
+  33% { content: '..'; }
+  66% { content: '...'; }
+  100% { content: '.'; }
+}

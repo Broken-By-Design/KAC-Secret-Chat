@@ -28,7 +28,7 @@ fetch("/get_chatlogs", { credentials: "include" })
         anchor.rel = "noopener noreferrer";
 
         const img = document.createElement('img');
-        img.loading = "lazy";
+        // img.loading = "lazy";
         img.id = entry.id;
         img.src = `/get_image/${entry.id}`;
 
@@ -197,15 +197,22 @@ function getCookie(name) {
 //   }
 // }
 
-function scrollToBottom(force = false, minHeight = 200) {
-  // Always scroll the whole page since messages doesn't have overflow
-  const atBottom =
-    window.innerHeight + window.scrollY >= document.body.scrollHeight - minHeight;
 
+// DataTypes
+// integers | Numbers | 1, 2, 3, 4, ... -1, -2, -3, ...
+// Floats | Decimals | 1.123 
+// String | Text | '/" "This this a string" 
+// Boolean | True/False | true, false
+
+
+function scrollToBottom(force = false, minHeight = 200) {
+  const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - minHeight;
+
+  
   if (force || atBottom) {
     window.scrollTo({
       top: document.body.scrollHeight,
-      behavior: 'smooth'  // or 'auto' if you want instant
+      behavior: 'smooth'
     });
   }
 }
@@ -361,7 +368,9 @@ function addMessage(message, nickname, timestamp) {
   item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
   // window.scrollTo(0, document.body.scrollHeight);
-  scrollToBottom();
+  const elementHeight = item.offsetHeight;
+  const dynamicThreshold = elementHeight + 200;
+  scrollToBottom(false, dynamicThreshold);
 }
 
 function addHighlightedMessage(message, nickname, timestamp) {
@@ -378,7 +387,10 @@ function addHighlightedMessage(message, nickname, timestamp) {
   item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
   // window.scrollTo(0, document.body.scrollHeight);
-  scrollToBottom();
+  // scrollToBottom();
+  const elementHeight = item.offsetHeight;
+  const dynamicThreshold = elementHeight + 200;
+  scrollToBottom(false, dynamicThreshold);
 }
 
 function addSystemMessage(message, nickname, timestamp) {
@@ -389,11 +401,14 @@ function addSystemMessage(message, nickname, timestamp) {
   const formattedMessage = linkify(message);
 
   const item = document.createElement("li");
-  // Note: Make sure your sanitizer is configured to allow <a> tags, or you might see your anchors stripped out.
+  console.log(`Sending system message: ${formattedMessage}`);
   item.innerHTML = `<b id="nickname">${nickname}:</b> ${formattedMessage} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
   // window.scrollTo(0, document.body.scrollHeight);
-  scrollToBottom();
+  // scrollToBottom();
+  const elementHeight = item.offsetHeight;
+  const dynamicThreshold = elementHeight + 200;
+  scrollToBottom(false, dynamicThreshold);
 }
 
 
@@ -470,6 +485,7 @@ input.addEventListener('blur', () => {
 window.addEventListener("focus", () => {
   missedCount = 0;
   updateTitle();
+  scrollToBottom();
 });
 
 socket.on("connect", function () {
@@ -506,8 +522,10 @@ socket.on("chat_message", (msg) => {
   if (msg.highlight) {
     addHighlightedMessage(msg.message, msg.nickname, msg.timestamp);
   } else if (msg.system) {
+    console.log("System message sent")
     addSystemMessage(msg.message, msg.nickname, msg.timestamp);
   } else {
+    console.log("Normal message sent")
     addMessage(msg.message, msg.nickname, msg.timestamp);
   }
   if (document.hidden) {
@@ -550,13 +568,13 @@ socket.on('typing_update', ({ users }) => {
 
   let text = '';
   if (users.length === 1) {
-    text = `<b>${HtmlSanitizer.SanitizeHtml(users[0])}</b> is typing…`;
+    text = `<b>${HtmlSanitizer.SanitizeHtml(users[0])}</b> is typing`;
   } else if (users.length === 2) {
-    text = `<b>${HtmlSanitizer.SanitizeHtml(users[0])}</b> and <b>${HtmlSanitizer.SanitizeHtml(users[1])}</b> are typing…`;
+    text = `<b>${HtmlSanitizer.SanitizeHtml(users[0])}</b> and <b>${HtmlSanitizer.SanitizeHtml(users[1])}</b> are typing`;
   } else {
     const last = users.pop();
     // text = `${users.join(', ')}, and ${last} are typing…`;
-    const text = `${users.map(u => `<b>${HtmlSanitizer.SanitizeHtml(u)}</b>`).join(', ')}, and <b>${HtmlSanitizer.SanitizeHtml(last)}</b> are typing…`;
+    text = `${users.map(u => `<b>${HtmlSanitizer.SanitizeHtml(u)}</b>`).join(', ')}, and <b>${HtmlSanitizer.SanitizeHtml(last)}</b> are typing`;
 
   }
 
