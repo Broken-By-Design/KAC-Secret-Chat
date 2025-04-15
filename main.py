@@ -6,7 +6,8 @@ import os
 import datetime
 from dotenv import load_dotenv
 import schedule
-from threading import Thread
+# from threading import Thread
+from eventlet.green.threading import Thread
 import time
 import json
 from google import genai
@@ -309,10 +310,6 @@ def handle_chat_message(data):
         else:
             socketio.emit('chat_message', { 'message': message, 'nickname': "KAC-Bot", 'timestamp': timestamp })
         add_chatlog_entry(message, "KAC-Bot", timestamp)
-
-    if message.startswith("/clear"):
-        # socketio.emit('clear_chat', {}, to)
-        socketio.emit('clear_chat', room=request.sid)
 
     if message.startswith("/online"):
         online_users = get_online_users(connected_usernames)

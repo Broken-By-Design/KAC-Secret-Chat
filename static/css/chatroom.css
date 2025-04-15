@@ -72,6 +72,7 @@ body {
 }
 
 #messages {
+  /* scroll-behavior: smooth; */
   color: whitesmoke;
   list-style-type: none;
   margin: 0;

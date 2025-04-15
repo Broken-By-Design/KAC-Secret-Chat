@@ -5,66 +5,142 @@ const messages = document.getElementById("messages");
 fetch("/get_chatlogs", { credentials: "include" })
   .then(res => res.json())
   .then(data => {
-    const fragment = document.createDocumentFragment();
-    const imagePromises = [];
+    const renderComplete = [];
+
     data.forEach(entry => {
-      if (entry == null ||
-          entry.type == null ||
-          entry.nickname == null ||
-          entry.timestamp == null ||
-          (entry.type !== "image" && entry.message == null)
-        ) {
+      if (
+        entry == null ||
+        entry.type == null ||
+        entry.nickname == null ||
+        entry.timestamp == null ||
+        (entry.type !== "image" && entry.message == null)
+      ) {
         console.log("Invalid entry:", entry);
         return;
       }
-      const item = document.createElement("li");
+
       if (entry.type === "image") {
+        const item = document.createElement("li");
+
         const anchor = document.createElement('a');
         anchor.href = `/get_image/${entry.id}`;
         anchor.target = "_blank";
         anchor.rel = "noopener noreferrer";
 
-        // Create <img> element
         const img = document.createElement('img');
         img.loading = "lazy";
         img.id = entry.id;
         img.src = `/get_image/${entry.id}`;
-        const imagePromise = new Promise((resolve, reject) => {
+
+        const imageLoad = new Promise((resolve, reject) => {
           img.onload = resolve;
-          img.onerror = reject;  // Handle image loading errors
+          img.onerror = reject;
         });
 
-        // Append the image to the anchor
         anchor.appendChild(img);
 
-        // Construct the item
         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}: </b>`;
-        item.appendChild(anchor);  // Append the anchor (with the image) to the item
+        item.appendChild(anchor);
         item.innerHTML += ` <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
 
-        // item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}: </b> <a href="/get_image/${entry.id}" target="_blank" rel="noopener noreferrer" id="${entry.id}"></a> <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
-
-        imagePromises.push(imagePromise);
         messages.appendChild(item);
+        renderComplete.push(imageLoad); // track when image finishes loading
+
       } else if (entry.type === "highlight") {
-        addHighlightedMessage(entry.message, entry.nickname, entry.timestamp);
+        const p = new Promise((resolve) => {
+          addHighlightedMessage(entry.message, entry.nickname, entry.timestamp);
+          requestAnimationFrame(resolve);
+        });
+        renderComplete.push(p);
+
       } else if (entry.type === "system") {
-        console.log("Adding system message:", entry);
-        addSystemMessage(entry.message, entry.nickname, entry.timestamp);
+        const p = new Promise((resolve) => {
+          addSystemMessage(entry.message, entry.nickname, entry.timestamp);
+          requestAnimationFrame(resolve);
+        });
+        renderComplete.push(p);
+
       } else {
-        addMessage(entry.message, entry.nickname, entry.timestamp);
-        // const msg = linkify(entry.message);
-        // item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(msg)} <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
+        const p = new Promise((resolve) => {
+          addMessage(entry.message, entry.nickname, entry.timestamp);
+          requestAnimationFrame(resolve);
+        });
+        renderComplete.push(p);
       }
-      // fragment.appendChild(item);
-    });
-    messages.appendChild(fragment);
-    // window.scrollTo(0, document.body.scrollHeight);
-    Promise.all(imagePromises).then(() => {
-      window.scrollTo(0, document.body.scrollHeight);
     });
 
+    Promise.all(renderComplete).then(() => {
+      scrollToBottom(true); // Ensure full scroll after all items load/render
+    });
   });
+
+
+// fetch("/get_chatlogs", { credentials: "include" })
+//   .then(res => res.json())
+//   .then(data => {
+//     const fragment = document.createDocumentFragment();
+//     const imagePromises = [];
+//     data.forEach(entry => {
+//       if (entry == null ||
+//           entry.type == null ||
+//           entry.nickname == null ||
+//           entry.timestamp == null ||
+//           (entry.type !== "image" && entry.message == null)
+//         ) {
+//         console.log("Invalid entry:", entry);
+//         return;
+//       }
+//       const item = document.createElement("li");
+//       if (entry.type === "image") {
+//         const anchor = document.createElement('a');
+//         anchor.href = `/get_image/${entry.id}`;
+//         anchor.target = "_blank";
+//         anchor.rel = "noopener noreferrer";
+
+//         // Create <img> element
+//         const img = document.createElement('img');
+//         img.loading = "lazy";
+//         img.id = entry.id;
+//         img.src = `/get_image/${entry.id}`;
+//         const imagePromise = new Promise((resolve, reject) => {
+//           img.onload = resolve;
+//           img.onerror = reject;  // Handle image loading errors
+//         });
+
+//         // Append the image to the anchor
+//         anchor.appendChild(img);
+
+//         // Construct the item
+//         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}: </b>`;
+//         item.appendChild(anchor);  // Append the anchor (with the image) to the item
+//         item.innerHTML += ` <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
+
+//         // item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}: </b> <a href="/get_image/${entry.id}" target="_blank" rel="noopener noreferrer" id="${entry.id}"></a> <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
+
+//         imagePromises.push(imagePromise);
+//         messages.appendChild(item);
+//       } else if (entry.type === "highlight") {
+//         addHighlightedMessage(entry.message, entry.nickname, entry.timestamp);
+//       } else if (entry.type === "system") {
+//         console.log("Adding system message:", entry);
+//         addSystemMessage(entry.message, entry.nickname, entry.timestamp);
+//       } else {
+//         addMessage(entry.message, entry.nickname, entry.timestamp);
+//         // const msg = linkify(entry.message);
+//         // item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(entry.nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(msg)} <span id="timestamp">${formatTime(entry.timestamp)}</span>`;
+//       }
+//       // fragment.appendChild(item);
+//     });
+//     messages.appendChild(fragment);
+//     // window.scrollTo(0, document.body.scrollHeight);
+//     // Promise.all(imagePromises).then(() => {
+//     //   window.scrollTo(0, document.body.scrollHeight);
+//     // });
+//     Promise.all(imagePromises).then(() => {
+//       scrollToBottom(true); // force scroll to bottom after all images load
+//     });
+
+//   });
 
 
 const socket = io({
@@ -91,6 +167,34 @@ function getCookie(name) {
   }
   return null;
 }
+
+// function scrollToBottom(force = false) {
+//   const container = messages;
+//   const shouldScroll =
+//     force ||
+//     Math.abs(container.scrollHeight - container.scrollTop - container.clientHeight) < 200;
+
+//   if (shouldScroll) {
+//     container.scrollTop = container.scrollHeight;
+
+//     // backup: scroll whole page too
+//     window.scrollTo(0, document.body.scrollHeight);
+//   }
+// }
+
+function scrollToBottom(force = false) {
+  // Always scroll the whole page since messages doesn't have overflow
+  const atBottom =
+    window.innerHeight + window.scrollY >= document.body.scrollHeight - 200;
+
+  if (force || atBottom) {
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'smooth'  // or 'auto' if you want instant
+    });
+  }
+}
+
 
 function linkify(text) {
   const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/gi;
@@ -241,7 +345,8 @@ function addMessage(message, nickname, timestamp) {
   // Note: Make sure your sanitizer is configured to allow <a> tags, or you might see your anchors stripped out.
   item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
-  window.scrollTo(0, document.body.scrollHeight);
+  // window.scrollTo(0, document.body.scrollHeight);
+  scrollToBottom();
 }
 
 function addHighlightedMessage(message, nickname, timestamp) {
@@ -257,7 +362,8 @@ function addHighlightedMessage(message, nickname, timestamp) {
   // Note: Make sure your sanitizer is configured to allow <a> tags, or you might see your anchors stripped out.
   item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${HtmlSanitizer.SanitizeHtml(formattedMessage)} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
-  window.scrollTo(0, document.body.scrollHeight);
+  // window.scrollTo(0, document.body.scrollHeight);
+  scrollToBottom();
 }
 
 function addSystemMessage(message, nickname, timestamp) {
@@ -271,7 +377,8 @@ function addSystemMessage(message, nickname, timestamp) {
   // Note: Make sure your sanitizer is configured to allow <a> tags, or you might see your anchors stripped out.
   item.innerHTML = `<b id="nickname">${nickname}:</b> ${formattedMessage} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
-  window.scrollTo(0, document.body.scrollHeight);
+  // window.scrollTo(0, document.body.scrollHeight);
+  scrollToBottom();
 }
 
 
@@ -312,7 +419,8 @@ function addImageMessage(id, nickname, timestamp) {
   messages.appendChild(item);
 
   imagePromise.then(() => {
-    window.scrollTo(0, document.body.scrollHeight);
+    // window.scrollTo(0, document.body.scrollHeight);
+    scrollToBottom();
   }).catch((error) => {
     console.error('Image failed to load:', error);
   });
@@ -406,7 +514,8 @@ socket.on("user_connected", (nickname) => {
   const item = document.createElement("li");
   item.innerHTML = `Welcome! <b>${HtmlSanitizer.SanitizeHtml(nickname)}</b> has joined the chat.`;
   messages.appendChild(item);
-  window.scrollTo(0, document.body.scrollHeight);
+  // window.scrollTo(0, document.body.scrollHeight);
+  scrollToBottom();
 });
 
 const typingIndicator = document.getElementById('typing');
