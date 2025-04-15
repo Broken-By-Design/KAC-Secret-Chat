@@ -32,9 +32,10 @@ fetch("/get_chatlogs", { credentials: "include" })
         img.id = entry.id;
         img.src = `/get_image/${entry.id}`;
 
-        const imageLoad = new Promise((resolve, reject) => {
+        const imageLoad = new Promise((resolve) => {
+          // img.onload = resolve;
           img.onload = resolve;
-          img.onerror = reject;
+          img.onerror = resolve;
         });
 
         anchor.appendChild(img);
@@ -70,9 +71,23 @@ fetch("/get_chatlogs", { credentials: "include" })
     });
 
     Promise.all(renderComplete).then(() => {
-      scrollToBottom(true); // Ensure full scroll after all items load/render
-    });
+      console.log("Maybe")
+      requestAnimationFrame(() => {
+        console.log('Forcing scroll after initial load (rAF)'); // For debugging
+        scrollToBottom(true); // Now force scroll
+      });
+      // scrollToBottom(true); // Ensure full scroll after all items load/render
+    })
+    .catch(error => {
+      // It's good practice to catch potential errors from Promise.all
+      console.error("Error during initial message rendering:", error);
+      // You might still want to attempt a scroll even if some elements failed
+      requestAnimationFrame(() => {
+        console.log('Forcing scroll after initial load (rAF in catch)'); // For debugging
+        scrollToBottom(true);
+      });
   });
+});
 
 
 // fetch("/get_chatlogs", { credentials: "include" })
@@ -182,10 +197,10 @@ function getCookie(name) {
 //   }
 // }
 
-function scrollToBottom(force = false) {
+function scrollToBottom(force = false, minHeight = 200) {
   // Always scroll the whole page since messages doesn't have overflow
   const atBottom =
-    window.innerHeight + window.scrollY >= document.body.scrollHeight - 200;
+    window.innerHeight + window.scrollY >= document.body.scrollHeight - minHeight;
 
   if (force || atBottom) {
     window.scrollTo({
@@ -420,9 +435,12 @@ function addImageMessage(id, nickname, timestamp) {
 
   imagePromise.then(() => {
     // window.scrollTo(0, document.body.scrollHeight);
-    scrollToBottom();
+    const elementHeight = item.offsetHeight;
+    const dynamicThreshold = elementHeight + 50;
+    scrollToBottom(false, dynamicThreshold);
   }).catch((error) => {
     console.error('Image failed to load:', error);
+    scrollToBottom(false);
   });
 }
 
