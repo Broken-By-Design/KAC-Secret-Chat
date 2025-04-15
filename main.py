@@ -1,5 +1,5 @@
 import eventlet
-eventlet.monkey_patch(os=False)
+eventlet.monkey_patch()
 
 
 import os
@@ -302,7 +302,12 @@ def handle_chat_message(data):
         message = generate_response(message, user=nickname) # .removeprefix("!bot ")?
         # message = 
         timestamp = datetime.datetime.now().isoformat()
-        socketio.emit('chat_message', { 'message': message, 'nickname': "KAC-Bot", 'timestamp': timestamp })
+        if message.startswith("/highlight "):
+            message = message.removeprefix("/highlight ")
+            socketio.emit('chat_message', { 'message': message, 'nickname': "KAC-Bot", 'timestamp': timestamp, 'highlight': True })
+            add_chatlog_entry(message, "KAC-Bot", timestamp, type="highlight")
+        else:
+            socketio.emit('chat_message', { 'message': message, 'nickname': "KAC-Bot", 'timestamp': timestamp })
         add_chatlog_entry(message, "KAC-Bot", timestamp)
 
     if message.startswith("/clear"):
@@ -369,7 +374,7 @@ def assemble_and_emit_image(temp_id, metadata):
     })
 
     add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], type="image")
-    add_to_prompt_history_safe("user", f"{nickname}: sent an image.")
+    add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent an image.")
 
 
 # @socketio.on('image_chunk')

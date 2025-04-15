@@ -94,6 +94,8 @@ body {
 
 #messages > li > a > img {
   max-width: 30vw;
+  max-height: 50vh;
+
   height: auto;
 }
 
