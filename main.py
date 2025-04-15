@@ -309,7 +309,7 @@ def handle_chat_message(data):
             add_chatlog_entry(message, "KAC-Bot", timestamp, type="highlight")
         else:
             socketio.emit('chat_message', { 'message': message, 'nickname': "KAC-Bot", 'timestamp': timestamp })
-        add_chatlog_entry(message, "KAC-Bot", timestamp)
+            add_chatlog_entry(message, "KAC-Bot", timestamp)
 
     if message.startswith("/online"):
         online_users = get_online_users(connected_usernames)
