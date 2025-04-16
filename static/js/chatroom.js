@@ -424,7 +424,7 @@ function addSystemMessage(message, nickname, timestamp) {
 function addImageMessage(id, nickname, timestamp) {
   const item = document.createElement("li");
   const img = document.createElement("img"); // Create the <img> element
-  img.loading = "lazy";
+  // img.loading = "lazy";
   img.id = id;
   img.src = `/get_image/${id}`;
   img.alt = id; // Optional: Set alt text for the image
