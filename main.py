@@ -3,6 +3,7 @@ eventlet.monkey_patch()
 
 
 import os
+import glob
 import datetime
 from dotenv import load_dotenv
 import schedule
@@ -15,6 +16,9 @@ from google.genai import types
 import binascii
 import hashlib
 from collections import defaultdict
+import html
+import requests
+
 # import asyncio
 
 from utils import bot_functions
@@ -45,7 +49,7 @@ with open("ai_personality.txt", "r") as f:
 
 current_log_file = None
 
-connected_usernames = []
+connected_usernames = set()
 
 typing_users = set()
 
@@ -131,20 +135,44 @@ def load_recent_chat_context_dict(num_messages=10):
             chat_context.append(log)
     return chat_context
 
-def add_to_prompt_history_safe(role: str, text: str):
+def add_to_prompt_history_safe(role: str, text: str, image_part: bytes = None, type: str = "text"):
     global ai_prompt_history
 
-    if len(ai_prompt_history) <= 20:
-        ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
-    else:
-        ai_prompt_history.pop(0)
-        ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
+    if type == "text":
+        if len(ai_prompt_history) <= 20:
+            ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
+        else:
+            ai_prompt_history.pop(0)
+            ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
+    elif type == "image":
+        if not image_part:
+            raise ValueError("image_part required when type='image'")
+        if len(ai_prompt_history) <= 20:
+            ai_prompt_history.append(types.Content(role=role, parts=[types.Part.from_text(text=text), image_part]))
+        else:
+            ai_prompt_history.pop(0)
+            # ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
+            ai_prompt_history.append(types.Content(role=role, parts=[types.Part.from_text(text=text), image_part]))
+
 
 # def get_online_users() -> list[str]:
 #     global connected_usernames
 #     # print("Getting online users")
 #     # return connected_usernames
 #     return list(set(connected_usernames))
+
+# def initialize_ai_history_from_log(num_messages=20):
+#     global ai_prompt_history
+
+#     if not ai_prompt_history:
+#         recent_logs = load_recent_chat_context_dict(num_messages=num_messages)
+#         if not recent_logs:
+#             return
+
+#         ai_prompt_history = [
+#             types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part(text=log['message'] if log["type"] == "text" else f"{log.get('nickname')} sent an image.")])
+#             for log in recent_logs
+#         ]
 
 def initialize_ai_history_from_log(num_messages=20):
     global ai_prompt_history
@@ -154,57 +182,75 @@ def initialize_ai_history_from_log(num_messages=20):
         if not recent_logs:
             return
 
-        ai_prompt_history = [
-            types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part(text=log['message'] if log["type"] == "text" else f"{log.get('nickname')} sent an image.")])
-            for log in recent_logs
-        ]
+        ai_prompt_history = []
 
-def generate_response(message: str, user: str, enable_google_search: bool = True):
+        for log in recent_logs:
+            if log["type"] == "text":
+                ai_prompt_history.append(
+                    types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part(text=log['message'])])
+                )
+            elif log["type"] == "image":
+                # image_id = log['id']  # Assuming 'id' is used for the image identifier
+                # image_pattern = f'chatlogs/images/{image_id}.*'
+                # matched_files = glob.glob(image_pattern)
+                ai_prompt_history.append(
+                        types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part.from_text(text=f"{log.get('nickname')} sent an image.")])
+                    )
+
+                # print(full_image_pathc)
+                # if matched_files:
+                #     image_path = matched_files[0]
+                #     print(image_path)
+                #     with open(image_path, 'rb') as img_file:
+                #         image_bytes = img_file.read()
+                #         image_part = types.Part.from_uri(data=image_bytes, mime_type="image/*")
+                #         ai_prompt_history.append(
+                #             types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part.from_text(text=f"{log.get('nickname')} sent an image."), image_part])
+                #         )
+                # else:
+                #     ai_prompt_history.append(
+                #         types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part.from_text(text=f"{log.get('nickname')} sent an image. (Image missing)")]
+                #     ))
+
+
+def generate_response(message: str, user: str, enable_google_search: bool = True, image = False, image_id = None, request_cookies = None):
     global ai_client
     global ai_prompt_history
 
-    
-    # chat_context = load_recent_chat_context(num_messages=20)
-
-    # add_to_prompt_history_safe("user", f"Users Online: {', '.join(username for username in get_online_users())} | {user}: {message}")
-
-    # print(f"Responding to {message}...", end="")
-    
-    # print(ai_prompt_history)
     google_search_tool = types.Tool(
        google_search = types.GoogleSearch(),
         )
-
-    # safety_setting_list = [
-    #     types.SafetySetting(
-    #         category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-    #         threshold=types.HarmBlockThreshold.BLOCK_NONE,
-    #     ),
-    #     types.SafetySetting(
-    #         category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    #         threshold=types.HarmBlockThreshold.BLOCK_NONE,
-    #     ),
-    #     types.SafetySetting(
-    #         category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    #         threshold=types.HarmBlockThreshold.BLOCK_NONE,
-    #     ),
-    #     types.SafetySetting(
-    #         category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    #         threshold=types.HarmBlockThreshold.BLOCK_NONE,
-    #     ),
-    #     # types.SafetySetting(
-    #     #     category=types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
-    #     #     threshold=types.HarmBlockThreshold.HARM_BLOCK_THRESHOLD_UNSPECIFIED,
-    #     # ),
-    #   ]
-
 
     generate_content_config = types.GenerateContentConfig(
             system_instruction=ai_personality,
             tools=[google_search_tool] if enable_google_search else [],
             response_modalities=["TEXT"],
-            # safety_settings=safety_setting_list,
         )
+
+    if image:
+        if not request_cookies:
+            raise ValueError("request_cookies(dict) required when image=True")
+        if image_id:
+            image_path = f"http://0.0.0.0:5000/get_image/{image_id}"
+            image_bytes = requests.get(image_path, cookies=request_cookies).content
+            image_file = types.Part.from_bytes(
+                data=image_bytes, mime_type="image/*"
+            )
+            # print(f"Image file: {image_file}")
+            # image_file = ai_client.files.upload(file="")
+        else:
+            raise ValueError("image_id required when image=True")
+        tmp_history = ai_prompt_history.copy()
+        tmp_history.append([types.Part.from_text(text=message), image_file])
+        response = ai_client.models.generate_content(
+            model="gemini-2.0-flash",
+            config=generate_content_config,
+            # contents=ai_prompt_history,
+            contents=tmp_history
+        )
+        add_to_prompt_history_safe("user", f"{user} sent an image and asked {message}", type="text")
+        add_to_prompt_history_safe("model", response.text)
+        return response.text
 
     response = ai_client.models.generate_content(
         model="gemini-2.0-flash",
@@ -214,13 +260,19 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
 
     # print(f"Done!\tResponse: {response.text}")
 
-    add_to_prompt_history_safe("model", response.text)
+    # add_to_prompt_history_safe("model", response.text)
 
-    if response.text:
-        return response.text
-    else:
-        print(response)
-        return "Failed to generate a response. If you are a developer please check the logs."
+    for part in response.candidates[0].content.parts:
+        if part.text is not None:
+            # print(part.text)
+            return response.text
+            add_to_prompt_history_safe("model", response.text)
+
+    # if response.text:
+    #     return response.text
+    # else:
+    #     print(response)
+    #     return "Failed to generate a response. If you are a developer please check the logs."
 
     # tool_call = response.candidates[0].content.parts[0].function_call
 
@@ -260,7 +312,7 @@ def handle_connect():
     # if nickname not in connected_usernames:
     #     socketio.emit('user_connected', nickname)
     if nickname:
-        connected_usernames.append(nickname)
+        connected_usernames.add(nickname)
     
 
 @socketio.on("disconnect")
@@ -277,6 +329,7 @@ def handle_disconnect():
 
 @socketio.on("chat_message")
 def handle_chat_message(data):
+    # print(ai_prompt_history)
     message = data.get('message')
     nickname = data.get('nickname')
     timestamp = data.get('timestamp')
@@ -318,9 +371,9 @@ def handle_chat_message(data):
         add_chatlog_entry(f"{nickname}, The users online are: {', '.join(online_user for online_user in online_users[:-1])}{' and' if len(online_users) > 1 else ''} {online_users[-1]}", "KAC-Bot", timestamp, type="system")
     
     if message.startswith("/help"):
-        socketio.emit('chat_message', { 'message': f"{nickname}, The commands are: !bot <message>, /clear, /online, and /hightlight <message>", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
+        socketio.emit('chat_message', { 'message': html.escape(f"{nickname}, The commands are: !bot <message>, /clear, /online, and /hightlight <message>"), 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
         # eventlet.sleep(0.7)
-        add_chatlog_entry(f"{nickname}, The commands are: !bot <message>, /clear, /online, and /hightlight <message>", "KAC-Bot", timestamp, type="system")
+        add_chatlog_entry(html.escape(f"{nickname}, The commands are: !bot <message>, /clear, /online, and /hightlight <message>"), "KAC-Bot", timestamp, type="system")
     
     
 
@@ -333,12 +386,12 @@ def handle_image_chunk(data):
     _image_buffers[temp_id].append(chunk)
 
     if data['is_last']:
-        # offload the final assembly + disk I/O to a background greenlet
+        acceptance_cookie = request.cookies.get('acceptance_cookie')
         socketio.start_background_task(
-            assemble_and_emit_image, temp_id, data['metadata']
+            assemble_and_emit_image, temp_id, data['metadata'], acceptance_cookie
         )
 
-def assemble_and_emit_image(temp_id, metadata):
+def assemble_and_emit_image(temp_id, metadata, acceptance_cookie):
     # join all the chunks
     full_bytes = b''.join(_image_buffers.pop(temp_id, []))
 
@@ -371,7 +424,15 @@ def assemble_and_emit_image(temp_id, metadata):
     })
 
     add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], type="image")
-    add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent an image.")
+    # add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent an image.")
+    if metadata["question"]:
+        socketio.emit('chat_message', { 'message': "!bot "+metadata["question"], 'nickname': metadata['nickname'], 'timestamp': metadata['timestamp'] })
+        add_chatlog_entry("!bot "+metadata["question"], metadata['nickname'], metadata['timestamp'], type="text")
+        response = generate_response(metadata["question"], user=metadata['nickname'], image=True, image_id=final_id, request_cookies={'acceptance_cookie': acceptance_cookie})
+        socketio.emit('chat_message', { 'message': response, 'nickname': "KAC-Bot", 'timestamp': datetime.datetime.now().isoformat() })
+        add_chatlog_entry(response, "KAC-Bot", datetime.datetime.now().isoformat())
+    else:
+        add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent an image.")
 
 
 # @socketio.on('image_chunk')
@@ -456,7 +517,7 @@ def index():
 def login():
     if request.form.get("password") == app.config['CHAT_SECRET_KEY']:
         if request.cookies.get("nickname"):
-            response = make_response(render_template('chatroom.html'))
+            response = make_response(redirect(url_for('index')))
         else:
             response = make_response(render_template('nickname.html'))
         response.set_cookie('acceptance_cookie', request.form.get("password"), max_age=datetime.timedelta(weeks=1))

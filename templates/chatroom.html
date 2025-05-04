@@ -20,7 +20,7 @@
     <ul id="messages"></ul>
     <form id="form" action="">
       <div id="typing" style="display: none;"></div>
-      <button id="openFile" type="button" />
+      <button id="openFile" type="button" >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" stroke-width="2" data-darkreader-inline-stroke="" style="--darkreader-inline-stroke: currentColor;">
           <path d="M15 8h.01"></path>
           <path d="M12.5 21h-6.5a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v6.5"></path>
@@ -33,5 +33,30 @@
       <input type="file" id="fileInput" style="display: none;" accept="image/*" />
       <input id="input" autocomplete="off" placeholder="Type Here"/><button type="submit">Send</button>
     </form>
+    <!-- <div id="imageOption"> -->
+      <!-- HTML -->
+  <div id="imageOption">
+    <div id="imageOptionInner">
+      <img id="imagePreview" />
+      <label>
+        <input type="checkbox" id="botCheckbox" />
+        Ask KAC-Bot about this image?
+      </label>
+      <input type="text" id="botQuestion" placeholder="Enter question for KAC-Bot" />
+      <div class="controls">
+        <button id="sendImage">Send</button>
+        <button id="cancelUpload">Cancel</button>
+      </div>
+      <!-- <progress id="uploadProgress" value="0" max="100" style="display: none;"></progress> -->
+    </div>
+  </div>
+
+      <!-- <img id="imagePreview" />
+      <input type="checkbox" id="botCheckbox" />
+      <input type="text" id="botQuestion" placeholder="Enter question for bot" />
+      <button id="sendImage">Send</button>
+      <button id="cancelUpload">Cancel</button>
+      <progress id="uploadProgress" value="0" max="100" style="width: 100%; vertical-align: middle;"></progress>
+    </div> -->
   </body>
 </html>

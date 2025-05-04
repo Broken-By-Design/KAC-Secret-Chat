@@ -2,6 +2,16 @@ const form = document.getElementById("form");
 const input = document.getElementById("input");
 const messages = document.getElementById("messages");
 
+const imageOption = document.getElementById('imageOption');
+const imagePreview = document.getElementById('imagePreview');
+const botCheckbox  = document.getElementById('botCheckbox');
+const botQuestion  = document.getElementById('botQuestion');
+const sendImageBtn = document.getElementById('sendImage');
+const cancelBtn    = document.getElementById('cancelUpload');
+// const uploadProgress = document.getElementById('uploadProgress');
+
+
+
 fetch("/get_chatlogs", { credentials: "include" })
   .then(res => res.json())
   .then(data => {
@@ -15,7 +25,7 @@ fetch("/get_chatlogs", { credentials: "include" })
         entry.timestamp == null ||
         (entry.type !== "image" && entry.message == null)
       ) {
-        console.log("Invalid entry:", entry);
+        // console.log("Invalid entry:", entry);
         return;
       }
 
@@ -71,9 +81,9 @@ fetch("/get_chatlogs", { credentials: "include" })
     });
 
     Promise.all(renderComplete).then(() => {
-      console.log("Maybe")
+      // console.log("Maybe")
       requestAnimationFrame(() => {
-        console.log('Forcing scroll after initial load (rAF)'); // For debugging
+        // console.log('Forcing scroll after initial load (rAF)'); // For debugging
         scrollToBottom(true); // Now force scroll
       });
       // scrollToBottom(true); // Ensure full scroll after all items load/render
@@ -83,7 +93,7 @@ fetch("/get_chatlogs", { credentials: "include" })
       console.error("Error during initial message rendering:", error);
       // You might still want to attempt a scroll even if some elements failed
       requestAnimationFrame(() => {
-        console.log('Forcing scroll after initial load (rAF in catch)'); // For debugging
+        // console.log('Forcing scroll after initial load (rAF in catch)'); // For debugging
         scrollToBottom(true);
       });
   });
@@ -286,27 +296,51 @@ function sendImage(file, nickname, timestamp) {
   reader.readAsArrayBuffer(file);
 }
 
-function chunkAndEmit(buffer, id, nickname, timestamp) {
+function updateUploadProgressUI(sent, total) {
+  if (total > 0) {
+      // uploadProgress.value = sent;
+  }
+}
+
+function hideUploadProgress() {
+  setTimeout(() => {
+        // uploadProgress.style.display = 'none';
+        // uploadProgress.value = 0;
+  }, 500);
+}
+
+function showUploadProgress(totalSize) {
+  // uploadProgress.style.display = 'block';
+  // uploadProgress.max = totalSize;
+  // uploadProgress.value = 0;
+  // cancelUploadButton.style.display = 'inline-block'; // Show cancel button if implementing
+}
+
+function chunkAndEmit(buffer, id, nickname, timestamp, question=null) {
+  const totalSize = buffer.byteLength;
   const chunkSize = 256 * 1024; // 256 KB
+  const metadata = { nickname, timestamp, name: id, question: question };
   let offset = 0;
+  showUploadProgress(totalSize);
   while (offset < buffer.byteLength) {
     const end = Math.min(offset + chunkSize, buffer.byteLength);
     const chunk = buffer.slice(offset, end);
     socket.emit('image_chunk', {
-      id,                 // file name or UUID
+      id,
       chunk,
       is_last: end === buffer.byteLength,
-      metadata: { nickname, timestamp, name: id }
+      metadata: metadata
     });
     offset = end;
+    updateUploadProgressUI(offset, totalSize);
   }
 }
 
-async function compressAndSendImage(file, nickname, timestamp) {
+async function compressAndSendImage(file, nickname, timestamp, question=null) {
 
   if (file.type === 'image/gif' || file.type === 'image/svg+xml') {
     const buffer = await file.arrayBuffer();
-    return chunkAndEmit(buffer, file.name, nickname, timestamp);
+    return chunkAndEmit(buffer, file.name, nickname, timestamp, question);
   }
 
   // 1) Load the image into an off‑screen <img>
@@ -335,7 +369,10 @@ async function compressAndSendImage(file, nickname, timestamp) {
   // 4) Read the compressed Blob as ArrayBuffer
   const buffer = await compressedBlob.arrayBuffer();
 
+  const metadata = { nickname, timestamp, name: file.name, question: question };
+
   // 5) Chunk & send exactly like your existing sendImage()
+  const totalSize = buffer.byteLength;
   const chunkSize = 256 * 1024;
   let offset = 0;
   while (offset < buffer.byteLength) {
@@ -345,9 +382,10 @@ async function compressAndSendImage(file, nickname, timestamp) {
       id: file.name, // or generate a UUID
       chunk,
       is_last: end === buffer.byteLength,
-      metadata: { nickname, timestamp, name: file.name }
+      metadata: metadata
     });
     offset = end;
+    updateUploadProgressUI(offset, totalSize);
   }
 }
 
@@ -401,7 +439,7 @@ function addSystemMessage(message, nickname, timestamp) {
   const formattedMessage = linkify(message);
 
   const item = document.createElement("li");
-  console.log(`Sending system message: ${formattedMessage}`);
+  // console.log(`Sending system message: ${formattedMessage}`);
   item.innerHTML = `<b id="nickname">${nickname}:</b> ${formattedMessage} <span id="timestamp">${formatTime(timestamp)}</span>`;
   messages.appendChild(item);
   // window.scrollTo(0, document.body.scrollHeight);
@@ -420,6 +458,20 @@ function addSystemMessage(message, nickname, timestamp) {
 //     window.scrollTo(0, document.body.scrollHeight);
 //   };
 // }
+
+function openImageOptions(file) {
+  // console.log('Opening image options:);
+  imageOption.style.display = 'block';
+  // imageOptionInner.style.display = 'flex';
+  imagePreview.src = URL.createObjectURL(file);
+
+  // clear old state
+  botCheckbox.checked = false;
+  botQuestion.value = '';
+  
+  // stash the file in a closure or global so send handler can pick it up
+  imageOption._file = file;
+}
 
 function addImageMessage(id, nickname, timestamp) {
   const item = document.createElement("li");
@@ -515,17 +567,43 @@ document.getElementById("openFile").addEventListener("click", function () {
 document.getElementById("fileInput").addEventListener("change", function (event) {
   let file = event.target.files[0];
   // sendImage(file, getCookie("nickname"), new Date().toISOString());
-  compressAndSendImage(file, getCookie("nickname"), new Date().toISOString());
+  // compressAndSendImage(file, getCookie("nickname"), new Date().toISOString());
+  if (file) openImageOptions(file);
 });
+
+cancelBtn.addEventListener('click', () => {
+  imageOption.style.display = 'none';
+  imagePreview.src = '';
+  delete imageOption._file;
+});
+
+sendImageBtn.addEventListener('click', () => {
+  const file = imageOption._file;
+  const question = botCheckbox.checked ? botQuestion.value.trim() : null;
+
+  if (!file) return;  // safety
+
+  // show progress bar
+  // showUploadProgress(file.size);
+
+  // emit chunks.
+  compressAndSendImage(file, getCookie('nickname'), new Date().toISOString(), question);
+
+  // hide overlay
+  imageOption.style.display = 'none';
+  imagePreview.src = '';
+  delete imageOption._file;
+});
+
 
 socket.on("chat_message", (msg) => {
   if (msg.highlight) {
     addHighlightedMessage(msg.message, msg.nickname, msg.timestamp);
   } else if (msg.system) {
-    console.log("System message sent")
+    // console.log("System message sent")
     addSystemMessage(msg.message, msg.nickname, msg.timestamp);
   } else {
-    console.log("Normal message sent")
+    // console.log("Normal message sent")
     addMessage(msg.message, msg.nickname, msg.timestamp);
   }
   if (document.hidden) {

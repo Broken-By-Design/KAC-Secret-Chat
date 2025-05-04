@@ -150,6 +150,125 @@ body {
   text-align: left;
 }
 
+/* #imageOption {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  top: 50%;
+  left: 50%;
+  width: 30vw;
+  transform: translate(-50%, -50%);
+  background: #151515cc;
+  color: white;
+  padding: 1rem;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+#imageOptionInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+#imagePreview {
+  max-width: 100%;
+  max-height: 50vh;
+  object-fit: contain;
+  border-radius: 0.5rem;
+}
+.controls {
+  display: flex;
+  gap: 1rem;
+} */
+#imageOption {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  top: 50%;
+  left: 50%;
+  width: 30vw;
+  transform: translate(-50%, -50%);
+  background: #151515cc;
+  color: white;
+  padding: 1rem;
+  box-sizing: border-box;
+  pointer-events: auto; /* allow clicks now */
+  border-radius: 8px; /* Rounded corners */
+}
+
+#imageOptionInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem; /* Slightly increased gap for better spacing */
+}
+
+#imagePreview {
+  max-width: 100%;
+  max-height: 50vh;
+  object-fit: contain;
+  border-radius: 8px;
+  margin-bottom: 1rem; /* Adds spacing between image preview and other options */
+}
+
+#botCheckbox {
+  accent-color: #cc0000; /* Color matches the theme */
+  margin-right: 0.5rem;
+}
+
+label {
+  font-size: 1rem;
+  color: whitesmoke;
+}
+
+#botQuestion {
+  background: #272727;
+  color: whitesmoke;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 8px;
+  width: 80%;
+  margin-top: 0.5rem;
+  font-size: 1rem;
+}
+
+#botQuestion:focus {
+  outline: 2px solid #cc0000;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.controls button {
+  background: #4e4e4e;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.controls button:hover {
+  background: #cc0000;
+}
+
+.controls button:focus {
+  outline: 2px solid #cc0000;
+}
+
+.controls button#cancelUpload {
+  background: #b0b0b0;
+}
+
+.controls button#cancelUpload:hover {
+  background: #808080;
+}
+
+
 @keyframes ellipsis-anim {
   0% { content: '.'; }
   33% { content: '..'; }
