@@ -329,7 +329,7 @@ def handle_disconnect():
 
 @socketio.on("chat_message")
 def handle_chat_message(data):
-    # print(ai_prompt_history)
+    print(ai_prompt_history)
     message = data.get('message')
     nickname = data.get('nickname')
     timestamp = data.get('timestamp')
