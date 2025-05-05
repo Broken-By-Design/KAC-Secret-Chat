@@ -241,7 +241,7 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         else:
             raise ValueError("image_id required when image=True")
         tmp_history = ai_prompt_history.copy()
-        tmp_history.append([types.Part.from_text(text=message), image_file])
+        tmp_history.append([types.Part.from_text(text=f"{user}: {message}"), image_file])
         response = ai_client.models.generate_content(
             model="gemini-2.0-flash",
             config=generate_content_config,
