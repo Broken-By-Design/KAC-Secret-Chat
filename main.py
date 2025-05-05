@@ -353,7 +353,8 @@ def handle_chat_message(data):
     add_to_prompt_history_safe("user", f"{nickname}: {message}")
 
     if message.startswith("!bot "):
-        message = generate_response(message, user=nickname) # .removeprefix("!bot ")?
+        print(f"Asking bot: `{message}`")
+        message = generate_response(message, user=nickname) 
         # message = 
         timestamp = datetime.datetime.now().isoformat()
         if message.startswith("/highlight "):
