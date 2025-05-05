@@ -265,8 +265,8 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
     for part in response.candidates[0].content.parts:
         if part.text is not None:
             # print(part.text)
-            return response.text
             add_to_prompt_history_safe("model", response.text)
+            return response.text
 
     # if response.text:
     #     return response.text
