@@ -460,6 +460,11 @@ function addSystemMessage(message, nickname, timestamp) {
 // }
 
 function openImageOptions(file) {
+  // Add size limit (4mb)
+  if (file.size > 5 * 1024 * 1024) {
+    alert("No image larger than 5mb allowed!\nif you would like to compress your image you can use imagecompressor.com or resizepixel.com");
+    return;
+  }
   // console.log('Opening image options:);
   imageOption.style.display = 'block';
   // imageOptionInner.style.display = 'flex';
