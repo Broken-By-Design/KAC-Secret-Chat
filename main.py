@@ -393,7 +393,10 @@ def handle_image_chunk(data):
         )
 
 def assemble_and_emit_image(temp_id, metadata, acceptance_cookie):
-    # join all the chunks
+    chunks = _image_buffers.pop(temp_id, [])
+    for i, chunk in enumerate(chunks):
+        if i % 10 == 0:
+            eventlet.sleep(0)
     full_bytes = b''.join(_image_buffers.pop(temp_id, []))
 
     # dedupe / hash / write to disk
@@ -415,7 +418,9 @@ def assemble_and_emit_image(temp_id, metadata, acceptance_cookie):
         ext = ext.lower() or '.png'
         out_path = os.path.join(images_dir, f"{final_id}{ext}")
         with open(out_path, 'wb') as f:
-            f.write(full_bytes)
+            for i in range(0,len(full_bytes), 1024*1024): 
+                f.write(full_bytes[i:i+1024*1024)
+                eventlet.sleep(0)
 
     # emit the event once the image is saved
     socketio.emit('add_image', {
