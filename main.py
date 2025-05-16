@@ -419,7 +419,7 @@ def assemble_and_emit_image(temp_id, metadata, acceptance_cookie):
         out_path = os.path.join(images_dir, f"{final_id}{ext}")
         with open(out_path, 'wb') as f:
             for i in range(0,len(full_bytes), 1024*1024): 
-                f.write(full_bytes[i:i+1024*1024)
+                f.write(full_bytes[i:i+1024*1024])
                 eventlet.sleep(0)
 
     # emit the event once the image is saved
