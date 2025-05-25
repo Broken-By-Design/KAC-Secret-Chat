@@ -17,7 +17,7 @@ def parse_command(message: str, nickname: str, timestamp: str) -> None:
         add_chatlog_entry(f"{html.escape(question)} → {response}", "8-Ball", timestamp, globals.current_log_file, type="system")
     if message.startswith("/joke"):
         try:
-            response = requests.get(f"{url}/fun/joke", timeout=3, headers=request_headers).json()
+            response = requests.get(f"{url}/fun/joke?api_key=9813a54654f81bcc3f69fe1489f05e016d944c0b7d85df43feec77bf89ae97e7", timeout=3, headers=request_headers).json()
         except requests.exceptions.RequestException:
             globals.socketio.emit('chat_message', { 'message': "I couldn't fetch a joke! check the server status: https://status.killallchickens.org/report/uptime/a03d13d0a05da5a94df473ae71f8d648/", 'nickname': "Joke-Bot", 'timestamp': timestamp, 'system': True })
             add_chatlog_entry("I couldn't fetch a joke! check the server status: https://status.killallchickens.org/report/uptime/a03d13d0a05da5a94df473ae71f8d648/", "Joke-Bot", timestamp, globals.current_log_file, type="system")
