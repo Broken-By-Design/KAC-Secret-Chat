@@ -5,7 +5,7 @@ import requests
 
 def parse_command(message: str, nickname: str, timestamp: str) -> None:
     url = "https://api.killallchickens.org"
-    request_headers = { "Origin": "https://chat.killallchickens.org", "Referer": "https://cool.killallchickens.org" }
+    request_headers = { "Origin": "https://chat.killallchickens.org", "Referer": "https://chat.killallchickens.org" }
     if message.startswith("/8ball "):
         question = message.split(" ", 1)[1]
         if not question:
