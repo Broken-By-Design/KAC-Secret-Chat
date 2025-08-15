@@ -220,7 +220,7 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         tmp_history = globals.ai_prompt_history.copy()
         tmp_history.append([types.Part.from_text(text=f"{user}: {message}"), image_file])
         response = ai_client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash-lite",
             config=generate_content_config,
             # contents=globals.ai_prompt_history,
             contents=tmp_history
@@ -230,7 +230,7 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         return response.text
 
     response = ai_client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash-lite",
         config=generate_content_config,
         contents=globals.ai_prompt_history,
     )
