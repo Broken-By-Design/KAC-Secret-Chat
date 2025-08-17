@@ -607,6 +607,8 @@ sendImageBtn.addEventListener('click', () => {
   imageOption.style.display = 'none';
   imagePreview.src = '';
   delete imageOption._file;
+
+  document.getElementById("fileInput").value = null;
 });
 
 

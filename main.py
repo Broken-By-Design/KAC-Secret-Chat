@@ -31,6 +31,8 @@ from flask_socketio import SocketIO
 
 from utils.helpers import *
 
+import magic
+
 
 load_dotenv()
 
@@ -210,8 +212,11 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         if image_id:
             image_path = f"http://0.0.0.0:5000/get_image/{image_id}"
             image_bytes = requests.get(image_path, cookies=request_cookies).content
+
+            mime_type = magic.from_buffer(image_bytes, mime=True)
+
             image_file = types.Part.from_bytes(
-                data=image_bytes, mime_type="image/*"
+                data=image_bytes, mime_type=mime_type
             )
             # print(f"Image file: {image_file}")
             # image_file = ai_client.files.upload(file="")
@@ -333,7 +338,7 @@ def handle_chat_message(data):
 
     add_to_prompt_history_safe("user", f"{nickname}: {message}")
 
-    if message.startswith("!bot "):
+    if message.lower().startswith("!bot "):
         print(f"Asking bot: `{message}`")
         message = generate_response(message, user=nickname) 
         # message = 
