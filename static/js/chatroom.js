@@ -561,6 +561,7 @@ form.addEventListener("submit", (e) => {
   }
   if (input.value === "/gamble") {
     openGame("game-gamble-d6eca0");
+    input.value = "";
     return;
   }
   if (input.value) {
