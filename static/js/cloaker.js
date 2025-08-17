@@ -10,7 +10,11 @@ function cloak() {
     if (!popup || popup.closed) {
       alert("Please allow popups and redirects for about:blank cloak to work.");
     } else {
-      popup.document.title = "CHT | KAC";
+      popup.document.title = "TeacherEase: Student Main";
+      const link = popup.document.createElement("link");
+      link.rel = "icon";
+      link.href = "https://www.teacherease.com/favicon.ico";
+      popup.document.head.appendChild(link);
       const iframe = popup.document.createElement("iframe");
       iframe.style.position = "fixed";
       iframe.style.top =
@@ -40,7 +44,11 @@ function openGame(uri) {
     if (!popup || popup.closed) {
       alert("Please allow popups and redirects for about:blank cloak to work.");
     } else {
-      popup.document.title = "CHT | KAC";
+      popup.document.title = "TeacherEase: Student Main";
+      const link = popup.document.createElement("link");
+      link.rel = "icon";
+      link.href = "https://www.teacherease.com/favicon.ico";
+      popup.document.head.appendChild(link);
       const iframe = popup.document.createElement("iframe");
       iframe.style.position = "fixed";
       iframe.style.top =
