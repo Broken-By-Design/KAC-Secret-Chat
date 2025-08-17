@@ -557,6 +557,10 @@ def get_image(id):
 
     return "File not found", 404
 
+@app.route('/game-gamble-d6eca0', methods=['GET'])
+def gamble():
+
+    return render_template('gamble.html')
 def run_scheduled_task():
     scheduler_thread = Thread(target=schedule_task)
     scheduler_thread.daemon = True
