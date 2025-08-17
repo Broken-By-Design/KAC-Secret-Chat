@@ -44,10 +44,10 @@ function openGame(uri) {
     if (!popup || popup.closed) {
       alert("Please allow popups and redirects for about:blank cloak to work.");
     } else {
-      popup.document.title = "TeacherEase: Student Main";
+      popup.document.title = "Home - Google Drive";
       const link = popup.document.createElement("link");
       link.rel = "icon";
-      link.href = "https://www.teacherease.com/favicon.ico";
+      link.href = "https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png";
       popup.document.head.appendChild(link);
       const iframe = popup.document.createElement("iframe");
       iframe.style.position = "fixed";
