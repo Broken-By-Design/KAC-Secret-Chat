@@ -284,12 +284,16 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
 @socketio.on("connect")
 def handle_connect():
     nickname = request.args.get('nickname')
+    sid = request.sid
     print(f"User connected: {nickname}")
 
     # if nickname not in globals.connected_usernames:
     #     socketio.emit('user_connected', nickname)
     if nickname:
         globals.connected_usernames.add(nickname)
+        globals.users_with_sid[nickname] = sid
+
+    # print(globals.users_with_sid)
     
 
 @socketio.on("disconnect")
