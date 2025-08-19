@@ -559,6 +559,12 @@ form.addEventListener("submit", (e) => {
     cloak();
     return;
   }
+
+  if (input.value === "/refresh" || input.value === "/reload") {
+    location.reload();
+    return;
+  }
+
   if (input.value === "/gamble") {
     openGame("game-gamble-d6eca0");
     input.value = "";
