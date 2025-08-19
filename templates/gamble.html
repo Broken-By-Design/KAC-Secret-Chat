@@ -368,17 +368,19 @@
             const coinContainer = document.getElementById("coin-container");
             const autoSpinButton = document.getElementById("auto-spin-button"); // ENHANCEMENT
 
-            // Game State
-            const MINIMUM_BET = 1;
-            const STARTING_BALANCE = 1000;
-            const STARTING_BET = 10;
+            // --- Game State using BigInt ---
+            const MINIMUM_BET = 1n;
+            const STARTING_BALANCE = 1000n;
+            const STARTING_BET = 10n;
+            // REMOVED: No more MAX_BET constant
+
             let balance = STARTING_BALANCE;
             let currentBet = STARTING_BET;
             let isSpinning = false;
             let isAllIn = false;
-            let spinIntervals = []; // To hold reel animation intervals
-            let finalResultStr = ""; // To store the result for slam stop
-            let currentSpinBetAmount = 0; // FIX: 1. Variable to hold the correct bet amount for the spin's duration.
+            let spinIntervals = [];
+            let finalResultStr = "";
+            let currentSpinBetAmount = 0n;
 
             // ENHANCEMENT: Autoplay state
             let isAutoplaying = false;
@@ -392,8 +394,9 @@
                     date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
                     expires = "; expires=" + date.toUTCString();
                 }
+                // Store BigInt as a string
                 document.cookie =
-                    name + "=" + (value || "") + expires + "; path=/";
+                    name + "=" + (value.toString() || "") + expires + "; path=/";
             }
             function getCookie(name) {
                 let nameEQ = name + "=";
@@ -412,22 +415,24 @@
 
             // --- Utility Functions ---
             function formatNumber(num) {
+                // toLocaleString works with BigInt
                 return num.toLocaleString();
             }
 
             function updateDisplay() {
                 balanceDisplay.textContent = `$${formatNumber(balance)}`;
-                const effectiveBet = isAllIn ? balance : currentBet;
+                let effectiveBet = isAllIn ? balance : currentBet;
+                
                 betDisplay.textContent = `$${formatNumber(effectiveBet)}`;
 
                 const cannotPlay = isSpinning || (isAutoplaying && !isSpinning);
                 spinButton.disabled =
-                    balance < effectiveBet || cannotPlay || balance <= 0;
-                allInButton.disabled = balance <= 0 || isAllIn || cannotPlay;
+                    balance < effectiveBet || cannotPlay || balance <= 0n;
+                allInButton.disabled = balance <= 0n || isAllIn || cannotPlay;
 
                 const nextBet = getNextBetStep(currentBet);
                 increaseBetButton.disabled =
-                    nextBet > balance || cannotPlay || isAllIn;
+                    nextBet > balance || cannotPlay || isAllIn; // REMOVED: MAX_BET check
                 decreaseBetButton.disabled =
                     currentBet <= MINIMUM_BET || cannotPlay || isAllIn;
 
@@ -459,35 +464,34 @@
                 );
             }
 
-            // --- NEW: DYNAMIC BETTING LOGIC ---
+            // --- DYNAMIC BETTING LOGIC with BigInt ---
             function getNextBetStep(bet) {
                 if (bet < MINIMUM_BET) return MINIMUM_BET;
-                const orderOfMagnitude = Math.pow(
-                    10,
-                    Math.floor(Math.log10(bet))
-                );
-                const increment = orderOfMagnitude / 2;
-                let nextBet = Math.ceil((bet + 1) / increment) * increment;
-                return Math.max(nextBet, MINIMUM_BET);
+                // Using string manipulation for order of magnitude with BigInt
+                const betStr = bet.toString();
+                const orderOfMagnitude = BigInt('1' + '0'.repeat(betStr.length - 1));
+                const increment = orderOfMagnitude / 2n || 1n;
+                let nextBet = (bet + increment) / increment * increment;
+                return nextBet; // REMOVED: MAX_BET check
             }
 
             function getPreviousBetStep(bet) {
                 if (bet <= MINIMUM_BET) return MINIMUM_BET;
-                const orderOfMagnitude = Math.pow(
-                    10,
-                    Math.floor(Math.log10(bet - 1))
-                );
-                const increment = orderOfMagnitude / 2;
-                let prevBet = Math.floor((bet - 1) / increment) * increment;
-                return Math.max(prevBet, MINIMUM_BET);
+                const betMinusOneStr = (bet - 1n).toString();
+                const orderOfMagnitude = BigInt('1' + '0'.repeat(betMinusOneStr.length - 1));
+                const increment = orderOfMagnitude / 2n || 1n;
+                let prevBet = (bet - 1n) / increment * increment;
+                return prevBet < MINIMUM_BET ? MINIMUM_BET : prevBet;
             }
+
 
             function increaseBet() {
                 isAllIn = false;
-                const nextBet = getNextBetStep(currentBet);
-                if (nextBet <= balance) {
-                    currentBet = nextBet;
+                let nextBet = getNextBetStep(currentBet);
+                if (nextBet > balance) {
+                    nextBet = balance;
                 }
+                currentBet = nextBet; // REMOVED: MAX_BET check
                 updateDisplay();
             }
 
@@ -498,7 +502,7 @@
             }
 
             function setAllIn() {
-                if (balance > 0) {
+                if (balance > 0n) {
                     isAllIn = true;
                     updateDisplay();
                 }
@@ -506,19 +510,19 @@
 
             // --- Core Game Logic ---
             function spin() {
-                // ENHANCEMENT: Slam Stop functionality. If already spinning, stop the reels.
                 if (isSpinning) {
                     slamStop();
                     return;
                 }
 
-                const betAmount = isAllIn ? balance : currentBet;
+                let betAmount = isAllIn ? balance : currentBet;
+                // REMOVED: MAX_BET check from spin logic
+
                 if (balance < betAmount) {
-                    if (isAutoplaying) toggleAutoplay(); // Stop autoplay if out of money
+                    if (isAutoplaying) toggleAutoplay();
                     return;
                 }
 
-                // FIX: 2. Store the correct bet amount before deducting it from the balance.
                 currentSpinBetAmount = betAmount;
 
                 isSpinning = true;
@@ -526,13 +530,13 @@
                 clearWinEffects();
                 updateDisplay();
                 showMessage("Spinning...");
-                spinButton.textContent = "STOP"; // ENHANCEMENT: Change button text during spin
+                spinButton.textContent = "STOP";
 
                 const finalResult = generateFinalResult();
                 finalResultStr = finalResult.toString().padStart(6, "0");
 
                 slotDigits.forEach((digit, index) => {
-                    const spinDuration = 2000 + index * 400; // ENHANCEMENT: Reels take longer to stop
+                    const spinDuration = 2000 + index * 400;
                     spinIntervals[index] = setInterval(() => {
                         digit.textContent = getRandomInt(0, 9);
                     }, 100);
@@ -543,37 +547,30 @@
                 });
             }
 
-            // ENHANCEMENT: Function to stop a single reel
             function stopReel(index) {
-                if (!spinIntervals[index]) return; // Already stopped
+                if (!spinIntervals[index]) return;
 
                 clearInterval(spinIntervals[index]);
                 spinIntervals[index] = null;
                 const digit = slotDigits[index];
                 digit.textContent = finalResultStr[index];
-                digit.classList.add("digit-land"); // Add pop effect
+                digit.classList.add("digit-land");
                 setTimeout(() => digit.classList.remove("digit-land"), 200);
 
-                // Check if this is the last reel to stop
                 if (spinIntervals.every((interval) => interval === null)) {
-                    // FIX: 3. Use the stored, correct bet amount instead of the flawed recalculation.
-                    checkWin(parseInt(finalResultStr), currentSpinBetAmount);
+                    checkWin(finalResultStr, currentSpinBetAmount);
                 }
             }
-
-            // ENHANCEMENT: Slam Stop function
+            
             function slamStop() {
                 spinIntervals.forEach((_, index) => {
-                    setTimeout(() => stopReel(index), index * 50); // Stop reels in quick succession
+                    setTimeout(() => stopReel(index), index * 50);
                 });
             }
 
-            // ENHANCEMENT: More sophisticated result generation with Near Misses
             function generateFinalResult() {
                 const chance = Math.random();
-                // Rarer wins
-                if (chance < 0.00005) return 999999; // 0.005% Jackpot
-                // ENHANCEMENT: Near Miss logic. ~1% chance to trigger a near miss if no win occurred.
+                if (chance < 0.00005) return 999999; 
                 if (chance < 0.01) return generateNearMiss();
                 if (chance < 0.0005) return generateNOfAKind(6);
                 if (chance < 0.001) return generateStraight();
@@ -583,12 +580,10 @@
                 if (chance < 0.035) return generateNInARow(4);
                 if (chance < 0.1) return generateNOfAKind(3);
                 if (chance < 0.15) return generateNInARow(3);
-                // ENHANCEMENT: Higher chance for a small win (LDW)
                 if (chance < 0.35) return generateNOfAKind(2);
                 return getRandomInt(0, 999999);
             }
 
-            // ENHANCEMENT: Generate a result that is close to a big win
             function generateNearMiss() {
                 const jackpotAlmost = "99999" + getRandomInt(0, 8);
                 const sixOfAKindAlmost = ((d) =>
@@ -663,59 +658,60 @@
                 return false;
             }
 
-            function checkWin(result, betAmount) {
-                const resultStr = result.toString().padStart(6, "0");
+            function checkWin(resultStr, betAmount) {
                 const counts = {};
                 for (const d of resultStr) {
                     counts[d] = (counts[d] || 0) + 1;
                 }
                 const maxCount = Math.max(...Object.values(counts));
-                let payout = 0;
+                let payout = 0n;
                 let winType = "";
                 let winLevel = 0;
-                if (result === 999999) {
-                    payout = betAmount * 5000;
+                
+                // Payout calculations now use BigInt
+                if (resultStr === "999999") {
+                    payout = betAmount * 5000n;
                     winType = "JACKPOT!!!";
                     winLevel = 3;
                 } else if (maxCount === 6) {
-                    payout = betAmount * 1000;
+                    payout = betAmount * 1000n;
                     winType = "6 of a Kind!";
                     winLevel = 2;
                 } else if (isStraight(resultStr)) {
-                    payout = betAmount * 750;
+                    payout = betAmount * 750n;
                     winType = "Straight!";
                     winLevel = 2;
                 } else if (maxCount === 5) {
-                    payout = betAmount * 200;
+                    payout = betAmount * 200n;
                     winType = "5 of a Kind!";
                     winLevel = 2;
                 } else if (isNInARow(resultStr, 5)) {
-                    payout = betAmount * 150;
+                    payout = betAmount * 150n;
                     winType = "5 in a Row!";
                     winLevel = 2;
                 } else if (maxCount === 4) {
-                    payout = betAmount * 50;
+                    payout = betAmount * 50n;
                     winType = "4 of a Kind!";
                     winLevel = 1;
                 } else if (isNInARow(resultStr, 4)) {
-                    payout = betAmount * 40;
+                    payout = betAmount * 40n;
                     winType = "4 in a Row!";
                     winLevel = 1;
                 } else if (maxCount === 3) {
-                    payout = betAmount * 5;
+                    payout = betAmount * 5n;
                     winType = "3 of a Kind!";
                     winLevel = 1;
                 } else if (isNInARow(resultStr, 3)) {
-                    payout = betAmount * 4;
+                    payout = betAmount * 4n;
                     winType = "3 in a Row!";
                     winLevel = 1;
                 } else if (maxCount === 2) {
-                    payout = betAmount * 0.2;
+                    payout = betAmount / 5n; // 0.2 multiplier
                     winType = "Refund!";
                     winLevel = 0;
-                } // Loss Disguised as Win
+                }
 
-                if (payout > 0) {
+                if (payout > 0n) {
                     balance += payout;
                     showMessage(
                         `${winType} You win $${formatNumber(payout)}!`,
@@ -732,12 +728,10 @@
                 spinButton.textContent = "SPIN";
 
                 if (currentBet > balance) {
-                    currentBet = Math.max(
-                        getPreviousBetStep(balance),
-                        MINIMUM_BET
-                    );
+                    currentBet = balance > 0n ? getPreviousBetStep(balance) : MINIMUM_BET;
                 }
-                if (balance === 0) {
+                if (balance <= 0n) {
+                    balance = 0n; // Ensure balance doesn't go negative
                     showMessage(
                         "Game Over! You are out of money.",
                         false,
@@ -748,13 +742,11 @@
 
                 updateDisplay();
 
-                // ENHANCEMENT: If autoplaying, trigger the next spin after a delay
-                if (isAutoplaying && balance > 0) {
+                if (isAutoplaying && balance > 0n) {
                     setTimeout(spin, 1500);
                 }
             }
 
-            // ENHANCEMENT: Function to trigger win animations and sounds
             function triggerWinAnimation(level) {
                 let coinCount = 0;
                 if (level === 3) {
@@ -769,9 +761,8 @@
                 } else {
                     slotDisplay.classList.add("win-micro");
                     coinCount = 5;
-                } // Even small wins get a celebration
+                }
 
-                // Create coin shower
                 for (let i = 0; i < coinCount; i++) {
                     setTimeout(() => {
                         const coin = document.createElement("div");
@@ -788,14 +779,13 @@
                     }, i * 20);
                 }
             }
-
-            // ENHANCEMENT: Autoplay functionality
+            
             function toggleAutoplay() {
                 isAutoplaying = !isAutoplaying;
                 if (isAutoplaying) {
                     autoSpinButton.classList.add("active");
                     autoSpinButton.textContent = "STOP";
-                    spin(); // Start the first spin immediately
+                    spin();
                 } else {
                     autoSpinButton.classList.remove("active");
                     autoSpinButton.textContent = "AUTO";
@@ -822,22 +812,23 @@
             decreaseBetButton.addEventListener("click", decreaseBet);
             resetButton.addEventListener("click", resetProgress);
             allInButton.addEventListener("click", setAllIn);
-            autoSpinButton.addEventListener("click", toggleAutoplay); // ENHANCEMENT
+            autoSpinButton.addEventListener("click", toggleAutoplay);
 
             // --- Initial Setup ---
             window.onload = () => {
                 const savedBalance = getCookie("slotMachineBalance");
                 const savedBet = getCookie("slotMachineBet");
                 if (savedBalance) {
-                    balance = parseInt(savedBalance, 10);
+                    // Use BigInt constructor to parse the string from the cookie
+                    balance = BigInt(savedBalance);
                 }
                 if (savedBet) {
-                    currentBet = parseInt(savedBet, 10);
+                    currentBet = BigInt(savedBet);
                 }
                 if (currentBet > balance) {
                     currentBet = balance;
                 }
-                if (balance > 0 && currentBet <= 0) {
+                if (balance > 0n && currentBet <= 0n) {
                     currentBet = MINIMUM_BET;
                 }
                 updateDisplay();
