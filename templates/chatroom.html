@@ -19,16 +19,10 @@
 
     <script src="{{ url_for('static', filename='js/chatroom/utils.js') }}" defer></script>
     
-    <!-- 2. ui.js (Depends on utils.js) -->
-    <!-- This file uses 'ChatApp.utils', so it must come after utils.js. It adds the '.ui' property. -->
     <script src="{{ url_for('static', filename='js/chatroom/ui.js') }}" defer></script>
-    
-    <!-- 3. socket.js (Depends on utils.js and ui.js) -->
-    <!-- This file uses 'ChatApp.utils' and 'ChatApp.ui', so it comes next. It adds the '.socket' property. -->
+
     <script src="{{ url_for('static', filename='js/chatroom/socket.js') }}" defer></script>
-    
-    <!-- 4. main.js (Depends on all of the above) -->
-    <!-- This is the final "manager" file. It uses all the other modules to connect everything and start the app. -->
+
     <script src="{{ url_for('static', filename='js/chatroom/main.js') }}" defer></script>
     <title>CHT | KAC</title>
   </head>

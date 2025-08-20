@@ -137,7 +137,9 @@ document.addEventListener("DOMContentLoaded", function () {
             });
             typing = false;
         }
-        // Handle client side slash commands...
+
+        //* Handle client side slash commands...
+
         if (ui.input.value === "/cloak") {
             cloak();
             return;
