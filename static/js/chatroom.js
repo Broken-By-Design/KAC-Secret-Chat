@@ -614,6 +614,7 @@ sendImageBtn.addEventListener('click', () => {
   imagePreview.src = '';
   delete imageOption._file;
 
+  botQuestion.style.display = 'none';
   document.getElementById("fileInput").value = null;
 });
 
@@ -679,4 +680,8 @@ socket.on('typing_update', ({ users }) => {
   }
 
   typingIndicator.innerHTML = `${text}`;
+});
+
+botCheckbox.addEventListener('change', () => {
+  botQuestion.style.display = botCheckbox.checked ? 'block' : 'none';
 });
