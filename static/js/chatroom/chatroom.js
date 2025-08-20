@@ -681,7 +681,3 @@ socket.on('typing_update', ({ users }) => {
 
   typingIndicator.innerHTML = `${text}`;
 });
-
-botCheckbox.addEventListener('change', () => {
-  botQuestion.style.display = botCheckbox.checked ? 'block' : 'none';
-});
