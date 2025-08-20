@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     renderComplete.push(p);
                 } else if (entry.type === "system") {
                     const p = new Promise((resolve) => {
-                        addSystemMessage(
+                        ui.addSystemMessage(
                             entry.message,
                             entry.nickname,
                             entry.timestamp
