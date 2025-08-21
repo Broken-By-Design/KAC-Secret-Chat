@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded", function () {
         //* Handle client side slash commands...
 
         if (ui.input.value === "/cloak") {
+            ui.input.value = "";
             cloak();
             return;
         }
