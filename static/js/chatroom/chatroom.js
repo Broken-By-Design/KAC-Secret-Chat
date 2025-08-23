@@ -556,6 +556,7 @@ form.addEventListener("submit", (e) => {
     typing = false;
   }
   if (input.value === "/cloak") {
+    input.value = "";
     cloak();
     return;
   }
