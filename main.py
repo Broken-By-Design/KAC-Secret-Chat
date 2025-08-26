@@ -305,12 +305,19 @@ def handle_connect():
 def handle_disconnect():
     nickname = request.cookies.get('nickname')
     print(f"User disconnected: {nickname}")
-    if nickname and nickname in globals.connected_usernames:
-        globals.connected_usernames.remove(nickname)
 
-    if nickname and nickname in globals.typing_users:
-        globals.typing_users.remove(nickname)
-        socketio.emit('typing_update', {'users': list(globals.typing_users)})
+    if nickname:
+        if nickname in globals.typing_users:
+            globals.typing_users.remove(nickname)
+            socketio.emit('typing_update', {'users': list(globals.typing_users)})
+            
+        if nickname in globals.connected_usernames:
+            globals.connected_usernames.remove(nickname)
+
+        if nickname in globals.users_with_sid:
+            globals.users_with_sid.pop(nickname)
+        
+    
     # socketio.emit('user_disconnected', nickname)
 
 @socketio.on("chat_message")
