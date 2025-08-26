@@ -16,6 +16,12 @@ document.addEventListener("DOMContentLoaded", function () {
     let lastTypingTime = 0;
     const TYPING_TIMER_LENGTH = 2000; // 2 seconds
 
+    let emoji = new EmojiConvertor();
+    // emoji.text_mode = true;
+    emoji.replace_mode = 'unified';
+    emoji.allow_native = true;
+
+
     // --- INITIALIZATION ---
 
     // 1. Set up the socket event listeners (for receiving messages, etc.)
@@ -157,8 +163,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Send the chat message
         if (ui.input.value) {
+            var contents = ui.input.value;
+            contents = emoji.replace_colons(contents);
+            console.log(contents)
             socket.emit("chat_message", {
-                message: ui.input.value,
+                message: contents,
                 nickname: utils.getCookie("nickname"),
                 timestamp: new Date().toISOString(),
             });
