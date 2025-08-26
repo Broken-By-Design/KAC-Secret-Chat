@@ -78,7 +78,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     renderComplete.push(imageLoad);
                 } else if (entry.type === "highlight") {
                     const p = new Promise((resolve) => {
-                        addHighlightedMessage(
+                        ui.addHighlightedMessage(
                             entry.message,
                             entry.nickname,
                             entry.timestamp
@@ -165,7 +165,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (ui.input.value) {
             var contents = ui.input.value;
             contents = emoji.replace_colons(contents);
-            console.log(contents)
+            // console.log(contents)
             socket.emit("chat_message", {
                 message: contents,
                 nickname: utils.getCookie("nickname"),

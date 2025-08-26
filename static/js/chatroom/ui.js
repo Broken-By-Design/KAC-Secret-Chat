@@ -14,7 +14,7 @@ var ChatApp = window.ChatApp || {};
     // Override the link rendering
     const renderer = new marked.Renderer();
     renderer.link = function (data) {
-        console.log(data.href)
+        // console.log(data.href);
         const t = data.title ? ` title="${data.title}"` : "";
         return `<a href="${data.href}"${t} target="_blank" rel="noopener noreferrer">${data.text}</a>`;
     };
@@ -59,9 +59,9 @@ var ChatApp = window.ChatApp || {};
         if (!message || !nickname || !timestamp) return;
 
         // const formattedMessage = utils.linkify(message);
-        const formattedMessage = marked.parseInline(
+        const formattedMessage = utils.linkify(marked.parseInline(
             HtmlSanitizer.SanitizeHtml(message)
-        );
+        ));
         const item = document.createElement("li");
 
         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
@@ -79,14 +79,14 @@ var ChatApp = window.ChatApp || {};
     function addHighlightedMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
 
-        const formattedMessage = utils.linkify(message);
+        const formattedMessage = utils.linkify(marked.parseInline(
+            HtmlSanitizer.SanitizeHtml(message)
+        ));
         const item = document.createElement("li");
         item.classList.add("highlight");
         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
             nickname
-        )}:</b> ${HtmlSanitizer.SanitizeHtml(
-            formattedMessage
-        )} <span id="timestamp">${utils.formatTime(timestamp)}</span>`;
+        )}:</b> ${formattedMessage} <span id="timestamp">${utils.formatTime(timestamp)}</span>`;
         messages.appendChild(item);
 
         const elementHeight = item.offsetHeight;
@@ -97,7 +97,7 @@ var ChatApp = window.ChatApp || {};
     function addSystemMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
 
-        const formattedMessage = utils.linkify(message);
+        const formattedMessage = utils.linkify(marked.parseInline(message));
         const item = document.createElement("li");
         item.innerHTML = `<b id="nickname">${nickname}:</b> ${formattedMessage} <span id="timestamp">${utils.formatTime(
             timestamp
