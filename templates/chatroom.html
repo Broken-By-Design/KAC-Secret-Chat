@@ -13,8 +13,19 @@
       crossorigin="anonymous"
     ></script>
     <script src="https://cdn.jsdelivr.net/npm/@jitbit/htmlsanitizer@latest/HtmlSanitizer.min.js"></script>
-    <script src="{{ url_for('static', filename='js/cloaker.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/chatroom.js') }}" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/emoji-js/3.8.1/emoji.min.js"></script>
+
+    <script src="{{ url_for('static', filename='js/global/cloaker.js') }}" defer></script>
+
+    <!-- <script src="{{ url_for('static', filename='js/chatroom/main.js') }}" defer></script> -->
+
+    <script src="{{ url_for('static', filename='js/chatroom/utils.js') }}" defer></script>
+    
+    <script src="{{ url_for('static', filename='js/chatroom/ui.js') }}" defer></script>
+
+    <script src="{{ url_for('static', filename='js/chatroom/socket.js') }}" defer></script>
+
+    <script src="{{ url_for('static', filename='js/chatroom/main.js') }}" defer></script>
     <title>CHT | KAC</title>
   </head>
   <body>
