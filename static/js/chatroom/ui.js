@@ -9,6 +9,18 @@ var ChatApp = window.ChatApp || {};
 
     // --- PRIVATE VARIABLES (accessible only within this file) ---
 
+    // const markedRenderer = new marked.Renderer();
+
+    // Override the link rendering
+    const renderer = new marked.Renderer();
+    renderer.link = function (data) {
+        console.log(data.href)
+        const t = data.title ? ` title="${data.title}"` : "";
+        return `<a href="${data.href}"${t} target="_blank" rel="noopener noreferrer">${data.text}</a>`;
+    };
+
+    marked.setOptions({ renderer });
+
     // DOM Element Selections
     const form = document.getElementById("form");
     const input = document.getElementById("input");
@@ -46,13 +58,17 @@ var ChatApp = window.ChatApp || {};
     function addMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
 
-        const formattedMessage = utils.linkify(message);
+        // const formattedMessage = utils.linkify(message);
+        const formattedMessage = marked.parseInline(
+            HtmlSanitizer.SanitizeHtml(message)
+        );
         const item = document.createElement("li");
+
         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
             nickname
-        )}:</b> ${HtmlSanitizer.SanitizeHtml(
-            formattedMessage
-        )} <span id="timestamp">${utils.formatTime(timestamp)}</span>`;
+        )}:</b> ${formattedMessage} <span id="timestamp">${utils.formatTime(
+            timestamp
+        )}</span>`;
         messages.appendChild(item);
 
         const elementHeight = item.offsetHeight;
