@@ -367,9 +367,9 @@ def handle_connect():
                 print(f"Connection rejected for banned IP: {user_ip}")
                 return False  # This is how SocketIO rejects a connection
             else:
-                # The ban has expired, so we can deactivate it in the database
+                # The ban has expired, so we can remove it in the database
                 print(f"Deactivating expired ban for IP: {user_ip}")
-                cursor.execute("UPDATE BanList SET is_active = FALSE WHERE target_ip = %s", (user_ip,))
+                cursor.execute("DELETE FROM BanList WHERE target_ip = %s", (user_ip,))
                 conn.commit()
 
     except mysql.connector.Error as err:
