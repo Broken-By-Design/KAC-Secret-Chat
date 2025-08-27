@@ -26,8 +26,12 @@ from utils.helpers import add_chatlog_entry, add_to_prompt_history_safe
 
 # from google.genai.types import Tool, GoogleSearch
 
+import mysql.connector
+from mysql.connector import pooling
+from functools import wraps
+
 from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify, send_file
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, disconnect
 
 from utils.helpers import *
 
@@ -47,6 +51,25 @@ app.config['CHAT_SECRET_KEY'] = os.getenv("CHAT_SECRET_KEY", None)
 app.config['ADMIN_SECRET_KEY'] = os.getenv("ADMIN_SECRET_KEY", None)
 
 app.config['GEMINI_API_KEY'] = os.getenv("GEMINI_API_KEY", None)
+
+db_config = {
+    'host': os.getenv('DB_HOST'),
+    'port': int(os.getenv('DB_PORT', 3306)),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
+    'database': os.getenv('DB_NAME'),
+}
+
+try:
+    # A connection pool is much more efficient than creating new connections for every request.
+    db_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="chat_pool",
+                                                          pool_size=5,
+                                                          **db_config)
+    print("Successfully created database connection pool.")
+except mysql.connector.Error as err:
+    print(f"Error creating database connection pool: {err}")
+    db_pool = None
+
 
 ai_client = genai.Client(api_key=app.config['GEMINI_API_KEY'])
 
@@ -290,6 +313,39 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
 
 @socketio.on("connect")
 def handle_connect():
+    user_ip = request.remote_addr
+    
+    try:
+        conn = db_pool.get_connection()
+        cursor = conn.cursor(dictionary=True) # dictionary=True makes result accessible by column name
+        
+        cursor.execute(
+            "SELECT expires_at FROM BanList WHERE target_ip = %s AND is_active = TRUE", (user_ip,)
+        )
+        ban_record = cursor.fetchone()
+        
+        if ban_record:
+            expires_at = ban_record['expires_at']
+            # If expires_at is NULL (permanent) or is a future date, reject connection.
+            if expires_at is None or expires_at > datetime.datetime.utcnow():
+                print(f"Connection rejected for banned IP: {user_ip}")
+                return False  # This is how SocketIO rejects a connection
+            else:
+                # The ban has expired, so we can deactivate it in the database
+                print(f"Deactivating expired ban for IP: {user_ip}")
+                cursor.execute("UPDATE BanList SET is_active = FALSE WHERE target_ip = %s", (user_ip,))
+                conn.commit()
+
+    except mysql.connector.Error as err:
+        print(f"Database error on connect: {err}")
+        # accept connection if failed.
+
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            conn.close()
+    
     nickname = request.args.get('nickname')
     sid = request.sid
     print(f"User connected: {nickname}")
@@ -299,6 +355,8 @@ def handle_connect():
     if nickname:
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = sid
+        globals.users_with_IP[nickname] = request.remote_addr
+
 
     # print(globals.users_with_sid)
     
@@ -319,6 +377,9 @@ def handle_disconnect():
         if nickname in globals.users_with_sid:
             globals.users_with_sid.pop(nickname)
         
+        if nickname in globals.users_with_IP:
+            globals.users_with_IP.pop(nickname)
+        
     
     # socketio.emit('user_disconnected', nickname)
 
@@ -328,7 +389,13 @@ def handle_chat_message(data):
     message = data.get('message')
     nickname = data.get('nickname')
     timestamp = data.get('timestamp')
-    
+    print("Message received:", message, "from", nickname)
+
+    if nickname not in globals.connected_usernames:
+        globals.connected_usernames.add(nickname)
+        globals.users_with_sid[nickname] = request.sid
+        globals.users_with_IP[nickname] = request.remote_addr
+
     # print(f"Received message: {message} from {nickname} at {timestamp}")
     if message == "/clear":
         socketio.emit('clear_chat', room=request.sid)
@@ -579,6 +646,28 @@ def get_image(id):
 def gamble():
     return render_template('gamble.html')
 
+# --- ADMIN ---
+
+def admin_required(f):
+    """Checks for the admin cookie before allowing access to a route."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        admin_cookie = request.cookies.get('admin_acceptance_cookie')
+        if not admin_cookie or admin_cookie != app.config['ADMIN_SECRET_KEY']:
+            return jsonify({"message": "Authentication required"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+def get_ban_expiry(duration_str):
+    """Calculates an expiry datetime object from a string."""
+    if duration_str == 'permanent':
+        return None  # NULL in the database means permanent
+    elif duration_str == '1d':
+        return datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    elif duration_str == '7d':
+        return datetime.datetime.utcnow() + datetime.timedelta(weeks=1)
+    return None
+
 @app.route('/admin', methods=['GET'])
 def admin_panel():
     acceptance_cookie = request.cookies.get('admin_acceptance_cookie')
@@ -595,6 +684,101 @@ def admin_login():
         return response
     else:
         return render_template('admin/admin-login.html', error="Incorrect password")
+
+
+@app.route('/get-users', methods=['GET'])
+@admin_required
+def get_users():
+    return jsonify(globals.users_with_IP)
+
+@app.route("/admin/kick", methods=['POST'])
+@admin_required
+def kick_users():
+    """
+    Handles "kicking" users by sending a command to their browser
+    to delete the auth cookie and then disconnects them.
+    """
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+
+    users_to_kick = data['users']
+    kicked_count = 0
+    print(f"--- KICK ACTION: Received request to log out {', '.join(users_to_kick)} ---")
+
+    for user in users_to_kick:
+        sid_to_kick = globals.users_with_sid.get(user)
+        if sid_to_kick:
+            socketio.emit('force_logout', {}, room=sid_to_kick)
+            print(f"Sent force_logout command to {user} (SID: {sid_to_kick}).")
+            disconnect(sid_to_kick, namespace='/')
+            
+            kicked_count += 1
+
+    if kicked_count == 0:
+        return jsonify({"message": "No active users found with the provided names."}), 404
+        
+    return jsonify({"message": f"Successfully sent logout command to {kicked_count} user(s)."}), 200
+
+@app.route("/admin/ban", methods=['POST'])
+@app.route("/admin/ip-ban", methods=['POST'])
+@admin_required
+def ip_ban_users():
+    """Bans the IPs of selected users and writes them to the database."""
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+        
+    users_for_ip_ban = data['users']
+    duration = data.get('duration', 'permanent')  # Default to permanent if not specified
+    expiry_date = get_ban_expiry(duration)
+    
+    ips_to_ban = {globals.users_with_IP.get(user) for user in users_for_ip_ban if globals.users_with_IP.get(user)}
+    
+    if not ips_to_ban:
+        return jsonify({"message": "Could not find IPs for any of the selected users."}), 404
+
+    print(f"--- IP BAN ACTION: Banning IPs {', '.join(ips_to_ban)} for {duration} ---")
+
+    try:
+        conn = db_pool.get_connection()
+        cursor = conn.cursor()
+        
+        # This SQL statement will INSERT a new ban or UPDATE an existing one for the same IP.
+        # It's a very efficient way to handle bans.
+        sql = """
+            INSERT INTO BanList (target_ip, expires_at, is_active)
+            VALUES (%s, %s, TRUE)
+            ON DUPLICATE KEY UPDATE
+                expires_at = VALUES(expires_at), is_active = TRUE
+        """
+        
+        # Prepare data for bulk insertion/update
+        ban_data = [(ip, expiry_date) for ip in ips_to_ban]
+        cursor.executemany(sql, ban_data)
+        conn.commit()
+
+    except mysql.connector.Error as err:
+        print(f"Database error during ban: {err}")
+        return jsonify({"message": "A database error occurred."}), 500
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            conn.close()
+
+    # After banning, kick all users from those IPs
+    for user, user_ip in list(globals.users_with_IP.items()):
+        if user_ip in ips_to_ban:
+            sid_to_kick = globals.users_with_sid.get(user)
+            if sid_to_kick:
+                socketio.emit('force_logout', {}, room=sid_to_kick)
+                print(f"Sent force_logout command to {user} (SID: {sid_to_kick}).")
+                disconnect(sid_to_kick, namespace='/')
+
+                kicked_count += 1
+    
+    return jsonify({"message": f"Successfully banned and kicked users from IPs: {', '.join(ips_to_ban)}"}), 200
 
 def run_scheduled_task():
     scheduler_thread = Thread(target=schedule_task)

@@ -3,9 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/admin-panel.css') }}"
+    />
+
     <title>CHT | KAC</title>
+
+
     <script src="{{ url_for('static', filename='js/global/cloaker.js') }}"></script>
-    <script> cloak(); </script>
+    <!-- <script> cloak(); </script> -->
 
     <script src="{{ url_for('static', filename='js/admin/main.js') }}" defer></script>
 </head>
@@ -13,7 +21,25 @@
     <div class="main-container">
         <div class="title">
             <h1>KAC CHT | Admin Panel</h1>
-            <button id="refreshBtn">refresh</button>
+        </div>
+        <div class="content_container">
+            <div id="usersList">
+                <button id="refreshBtn">Refresh List</button>
+                <ul>
+
+                </ul>
+            </div>
+            <div class="actions_container">
+                <h1>Select users to perform an action.</h1>
+                <button id="kickBtn">Kick User(s) off (Logs them out)</button>
+                <h1 style="margin-top: 2ps;"> <b><i>WARNING!</i></b> These folowing commands are VERY Dangerous, and irreversable (for now)</h1>
+                <button id="1dayBanBtn"><b>1 day</b> Ban User(s)</button>
+                <button id="1weekBanBtn"><b>1 week</b> Ban User(s)</button>
+                <button id="permaBanBtn"><b>Perma / IP</b> Ban User(s)</button>
+                <h1>Troll commands (DO NOT WORK YET)</h1>
+                <button id="jumpscareBtn"><b>jumpscare</b> User(s)</button>
+                <button id="crashBtn"><b>Crash</b> User(s) chromebook</button>
+            </div>
         </div>
     </div>
 </body>
