@@ -317,9 +317,29 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
     #     return response.text
 
 
+def get_real_ip(request_obj):
+    """
+    Safely gets the real IP address from a request, prioritizing Cloudflare's
+    header and then falling back to standard proxy headers.
+    """
+    # 1. Prioritize Cloudflare's header. This is the most reliable in your setup.
+    #    The raw header name is 'Cf-Connecting-Ip', which Flask makes available
+    #    in the headers dictionary.
+    if 'Cf-Connecting-Ip' in request_obj.headers:
+        return request_obj.headers.get('Cf-Connecting-Ip')
+
+    # 2. Fallback to the standard 'X-Forwarded-For' header.
+    #    This is for environments without Cloudflare.
+    if 'X-Forwarded-For' in request_obj.headers:
+        # The header can contain a list of IPs; the first one is the original client.
+        return request_obj.headers.get('X-Forwarded-For').split(',')[0].strip()
+        
+    # 3. Final fallback to the direct connection address.
+    return request_obj.remote_addr
+
 @socketio.on("connect")
 def handle_connect():
-    user_ip = request.remote_addr
+    user_ip = get_real_ip(request)
     
     try:
         conn = db_pool.get_connection()
@@ -361,7 +381,7 @@ def handle_connect():
     if nickname:
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = sid
-        globals.users_with_IP[nickname] = request.remote_addr
+        globals.users_with_IP[nickname] = user_ip
 
 
     # print(globals.users_with_sid)
@@ -400,7 +420,7 @@ def handle_chat_message(data):
     if nickname not in globals.connected_usernames:
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = request.sid
-        globals.users_with_IP[nickname] = request.remote_addr
+        globals.users_with_IP[nickname] = get_real_ip(request)
 
     # print(f"Received message: {message} from {nickname} at {timestamp}")
     if message == "/clear":
@@ -787,38 +807,6 @@ def ip_ban_users():
     return jsonify({"message": f"Successfully banned and kicked users from IPs: {', '.join(ips_to_ban)}"}), 200
 
 
-@app.route('/debug-headers')
-def debug_headers():
-    """
-    A temporary route to inspect the headers and environment variables
-    being received by the Flask application from the reverse proxy.
-    """
-    # Create a dictionary from the request headers
-    headers = {key: value for key, value in request.headers}
-    
-    # Check the underlying WSGI environment for the most common IP headers
-    # Headers like 'X-Forwarded-For' become 'HTTP_X_FORWARDED_FOR' in the environ
-    environ_data = {
-        'HTTP_X_FORWARDED_FOR': request.environ.get('HTTP_X_FORWARDED_FOR'),
-        'HTTP_X_REAL_IP': request.environ.get('HTTP_X_REAL_IP'),
-        'REMOTE_ADDR': request.environ.get('REMOTE_ADDR')
-    }
-
-    debug_data = {
-        'message': 'Look for your real IP address in the values below.',
-        '1. request.remote_addr': request.remote_addr,
-        '2. all_request_headers': headers,
-        '3. relevant_wsgi_environ': environ_data
-    }
-    
-    # Also print it to your server logs for easy viewing
-    print("--- HEADER DEBUG ---")
-    import json
-    print(json.dumps(debug_data, indent=2))
-    print("--------------------")
-
-    return jsonify(debug_data)
-    
 def run_scheduled_task():
     scheduler_thread = Thread(target=schedule_task)
     scheduler_thread.daemon = True
