@@ -786,6 +786,39 @@ def ip_ban_users():
     
     return jsonify({"message": f"Successfully banned and kicked users from IPs: {', '.join(ips_to_ban)}"}), 200
 
+
+@app.route('/debug-headers')
+def debug_headers():
+    """
+    A temporary route to inspect the headers and environment variables
+    being received by the Flask application from the reverse proxy.
+    """
+    # Create a dictionary from the request headers
+    headers = {key: value for key, value in request.headers}
+    
+    # Check the underlying WSGI environment for the most common IP headers
+    # Headers like 'X-Forwarded-For' become 'HTTP_X_FORWARDED_FOR' in the environ
+    environ_data = {
+        'HTTP_X_FORWARDED_FOR': request.environ.get('HTTP_X_FORWARDED_FOR'),
+        'HTTP_X_REAL_IP': request.environ.get('HTTP_X_REAL_IP'),
+        'REMOTE_ADDR': request.environ.get('REMOTE_ADDR')
+    }
+
+    debug_data = {
+        'message': 'Look for your real IP address in the values below.',
+        '1. request.remote_addr': request.remote_addr,
+        '2. all_request_headers': headers,
+        '3. relevant_wsgi_environ': environ_data
+    }
+    
+    # Also print it to your server logs for easy viewing
+    print("--- HEADER DEBUG ---")
+    import json
+    print(json.dumps(debug_data, indent=2))
+    print("--------------------")
+
+    return jsonify(debug_data)
+    
 def run_scheduled_task():
     scheduler_thread = Thread(target=schedule_task)
     scheduler_thread.daemon = True
