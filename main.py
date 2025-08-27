@@ -812,37 +812,39 @@ def ip_ban_users():
                 socketio.emit('force_logout', {}, room=sid_to_kick)
                 print(f"Sent force_logout command to {user} (SID: {sid_to_kick}).")
                 disconnect(sid_to_kick, namespace='/')
-
-                kicked_count += 1
     
     return jsonify({"message": f"Successfully banned and kicked users from IPs: {', '.join(ips_to_ban)}"}), 200
 
-@app.route('/debug-headers')
-def debug_headers():
+@app.route("/admin/reset-chat", methods=["POST"])
+@admin_required
+def reset_chat():
     """
-    A temporary route to inspect the headers and environment variables
-    being received by the Flask application from the reverse proxy.
+    Clears the chat logs on disk, resets the AI's conversation memory,
+    and instructs all connected clients to clear their chat windows.
     """
-    # Create a dictionary from the request headers
-    headers = {key: value for key, value in request.headers}
-    
-    # Check the underlying WSGI environment for the most common IP headers
-    # Headers like 'X-Forwarded-For' become 'HTTP_X_FORWARDED_FOR' in the environ
-    environ_data = {
-        'HTTP_X_FORWARDED_FOR': request.environ.get('HTTP_X_FORWARDED_FOR'),
-        'HTTP_X_REAL_IP': request.environ.get('HTTP_X_REAL_IP'),
-        'REMOTE_ADDR': request.environ.get('REMOTE_ADDR')
-    }
+    try:
 
-    debug_data = {
-        'message': 'Look for your real IP address in the values below.',
-        '1. request.remote_addr': request.remote_addr,
-        '2. get_real_ip': get_real_ip(request),
-        '3. all_request_headers': headers,
-        '4. relevant_wsgi_environ': environ_data
-    }
+        clear_chatlogs()
 
-    return jsonify(debug_data)
+        globals.ai_prompt_history = []
+        print("In-memory AI prompt history has been cleared.")
+
+        socketio.emit('chat_cleared', {})
+
+        print("Sent 'chat_cleared' event to all clients.")
+        return jsonify({"message": "Chat has been successfully reset."}), 200
+
+    except Exception as e:
+        # Log the error for debugging purposes.
+        print(f"An error occurred while resetting the chat: {e}")
+        # Return an error response to the admin panel.
+        return jsonify({"message": "An error occurred during the chat reset."}), 500
+
+@app.route("/admin/reload-all", methods=["POST"])
+@admin_required
+def reload_all():
+    socketio.emit("force_reload", {})
+    return jsonify({"message": "Everyone has been reloaded."}), 200
 
 def run_scheduled_task():
     scheduler_thread = Thread(target=schedule_task)

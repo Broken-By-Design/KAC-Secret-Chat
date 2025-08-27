@@ -13,7 +13,7 @@
 
 
     <script src="{{ url_for('static', filename='js/global/cloaker.js') }}"></script>
-    <script> cloak(); </script>
+    <!-- <script> cloak(); </script> -->
 
     <script src="{{ url_for('static', filename='js/admin/main.js') }}" defer></script>
 </head>
@@ -22,23 +22,34 @@
         <div class="title">
             <h1>KAC CHT | Admin Panel</h1>
         </div>
-        <div class="content_container">
-            <div id="usersList">
+        <div class="row_container">
+            <div id="usersList" class="section_container"> <!-- Added section_container class for consistent styling -->
                 <button id="refreshBtn">Refresh List</button>
                 <ul>
-
+                    <!-- User list items would go here -->
                 </ul>
             </div>
-            <div class="actions_container">
+            <div class="section_container">
                 <h1>Select users to perform an action.</h1>
                 <button id="kickBtn">Kick User(s) off (Logs them out)</button>
-                <h1 style="margin-top: 2ps;"> <b><i>WARNING!</i></b> These folowing commands are VERY Dangerous, and irreversable (for now)</h1>
+                <h1 style="margin-top: 2rem;"> <b><i>WARNING!</i></b> These following commands are VERY Dangerous, and irreversable (for now)</h1>
                 <button id="1dayBanBtn"><b>1 day</b> Ban User(s)</button>
                 <button id="1weekBanBtn"><b>1 week</b> Ban User(s)</button>
-                <button id="permaBanBtn"><b>Perma / IP</b> Ban User(s)</button>
+                <button id="IPBanBtn"><b>Perma / IP</b> Ban User(s)</button>
                 <h1>Troll commands (DO NOT WORK YET)</h1>
                 <button id="jumpscareBtn"><b>Jumpscare</b> User(s)</button>
                 <button id="crashBtn"><b>Crash</b> User(s) chromebook</button>
+            </div>
+        </div>
+        <div class="row_container">
+            <div class="section_container">
+                <h1>Global commands</h1>
+                <button id="resetChatBtn"><b>Reset</b> the chat history</button>
+                <button id="reloadAllUsersBtn"><b>Reload</b> all users</button>
+            </div>
+            <div class="section_container">
+                <h1>Extra Commands</h1>
+                <p>Nothing here yet, check back soon!</p>
             </div>
         </div>
     </div>

@@ -147,6 +147,17 @@ var ChatApp = window.ChatApp || {};
                 "acceptance_cookie=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             window.location.reload();
         });
+
+        socket.on("chat_cleared", function () {
+            // Assuming your chat messages are in an element with id 'chat-messages'
+            ui.messages.innerHTML = "";
+            console.log("Chat was cleared by an admin.");
+        });
+
+        socket.on("force_reload", function () {
+          location.reload();
+        });
+
     }
 
     // --- PUBLIC INTERFACE ---

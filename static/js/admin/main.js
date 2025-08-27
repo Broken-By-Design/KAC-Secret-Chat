@@ -7,6 +7,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const refreshBtn = document.getElementById("refreshBtn");
     const kickBtn = document.getElementById("kickBtn"); // Assuming this is the kick button
 
+    const resetChatBtn = document.getElementById("resetChatBtn");
+    const reloadAllUsersBtn = document.getElementById("reloadAllUsersBtn");
+
+    // troll Commands, LOLz
+    const jumpscareBtn = document.getElementById("jumpscareBtn");
+    const crashBtn = document.getElementById("crashBtn");
 
     let selectedUsers = [];
 
@@ -24,7 +30,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             // Populate the list with users from the backend
             Object.entries(users).forEach((user) => {
-                const userItem = document.createElement("ul");
+                const userItem = document.createElement("li");
                 userItem.innerHTML = `<input type="checkbox" data-username="${user[0]}" /> ${user[0]} (${user[1]})`;
                 usersListElement.appendChild(userItem);
             });
@@ -81,6 +87,27 @@ document.addEventListener("DOMContentLoaded", function () {
             console.error(`Failed to perform action '${action}':`, error);
         }
     };
+    const performActionNoUser = async (action, details = {}) => {
+        try {
+            const response = await fetch(`/admin/${action}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(details),
+            });
+
+            if (response.ok) {
+                alert(`Action '${action}' successful.`);
+                fetchAndRenderUsers(); // Refresh the list after the action
+            } else {
+                const errorData = await response.json();
+                alert(`Error: ${errorData.message}`);
+            }
+        } catch (error) {
+            console.error(`Failed to perform action '${action}':`, error);
+        }
+    };
 
     // Event Listeners
     refreshBtn.addEventListener("click", fetchAndRenderUsers);
@@ -99,13 +126,25 @@ document.addEventListener("DOMContentLoaded", function () {
             performAction("ban", { duration: "7d" })
         );
     document
-        .getElementById("permaBanBtn")
-        .addEventListener("click", () =>
-            performAction("ban", { duration: "permanent" })
-        );
-    document
         .getElementById("IPBanBtn")
         .addEventListener("click", () => performAction("ip-ban"));
+
+    resetChatBtn.addEventListener("click", () =>
+        performActionNoUser("reset-chat")
+    );
+    reloadAllUsersBtn.addEventListener("click", () =>
+        performActionNoUser("reload-all")
+    );
+    jumpscareBtn.addEventListener("click", () =>
+        alert(
+            "Troll commands have not been completed yet. Please check back later!"
+        )
+    );
+    crashBtn.addEventListener("click", () =>
+        alert(
+            "Troll commands have not been completed yet. Please check back later!"
+        )
+    );
 
     // Initial load
     fetchAndRenderUsers();
