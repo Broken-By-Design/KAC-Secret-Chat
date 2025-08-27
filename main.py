@@ -44,6 +44,8 @@ globals.socketio = SocketIO(app, async_mode="eventlet", async_handlers=True)
 socketio = globals.socketio
 
 app.config['CHAT_SECRET_KEY'] = os.getenv("CHAT_SECRET_KEY", None)
+app.config['ADMIN_SECRET_KEY'] = os.getenv("ADMIN_SECRET_KEY", None)
+
 app.config['GEMINI_API_KEY'] = os.getenv("GEMINI_API_KEY", None)
 
 ai_client = genai.Client(api_key=app.config['GEMINI_API_KEY'])
@@ -575,8 +577,25 @@ def get_image(id):
 
 @app.route('/game-gamble-d6eca0', methods=['GET'])
 def gamble():
-
     return render_template('gamble.html')
+
+@app.route('/admin', methods=['GET'])
+def admin_panel():
+    acceptance_cookie = request.cookies.get('admin_acceptance_cookie')
+    if ((acceptance_cookie) and (acceptance_cookie == app.config['ADMIN_SECRET_KEY'])):
+        return render_template('admin/admin.html')
+    else:
+        return render_template('admin/admin-login.html')
+
+@app.route('/admin-login', methods=['POST'])
+def admin_login():
+    if request.form.get("password") == app.config['ADMIN_SECRET_KEY']:
+        response = make_response(redirect(url_for('admin_panel')))
+        response.set_cookie('admin_acceptance_cookie', request.form.get("password"), max_age=datetime.timedelta(days=1))
+        return response
+    else:
+        return render_template('admin/admin-login.html', error="Incorrect password")
+
 def run_scheduled_task():
     scheduler_thread = Thread(target=schedule_task)
     scheduler_thread.daemon = True
