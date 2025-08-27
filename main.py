@@ -29,6 +29,7 @@ from utils.helpers import add_chatlog_entry, add_to_prompt_history_safe
 import mysql.connector
 from mysql.connector import pooling
 from functools import wraps
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify, send_file
 from flask_socketio import SocketIO, disconnect
@@ -42,6 +43,11 @@ load_dotenv()
 
 
 app = Flask(__name__)
+
+app.wsgi_app = ProxyFix(
+    app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
+)
+
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "P%22%3BgzPe%5Ck%5D%3BgV-%7B%255TGSPYX%40OE7%5C.%40JsSuuoxHR%3A%3C1yBR%21N%28mm")
 
 globals.socketio = SocketIO(app, async_mode="eventlet", async_handlers=True)
