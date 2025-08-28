@@ -284,8 +284,9 @@ label {
     left: 0;
     width: 100vw;
     height: 100vh;
-    object-fit: cover; /* Scale image to cover entire screen */
+    object-fit: contain; /* Scale image to fit inside screen */
     z-index: 9999;
     user-select: none;
     pointer-events: none;
+    background-color: black; /* Optional: fills empty space */
 }
