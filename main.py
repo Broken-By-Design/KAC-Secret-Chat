@@ -350,12 +350,38 @@ def get_real_ip(request_obj):
 @socketio.on("connect")
 def handle_connect():
     user_ip = get_real_ip(request)
-
-    
-    
     nickname = request.args.get('nickname')
     sid = request.sid
     print(f"User connected: {nickname}")
+
+    try:
+        conn = db_pool.get_connection()
+        cursor = conn.cursor(dictionary=True) # dictionary=True makes result accessible by column name
+        
+        cursor.execute(
+            "SELECT expires_at FROM BanList WHERE target_ip = %s AND target_username = %s AND is_active = TRUE", (user_ip, nickname)
+        )
+        ban_record = cursor.fetchone()
+        
+        if ban_record:
+            expires_at = ban_record['expires_at']
+            # If expires_at is NULL (permanent) or is a future date, reject connection.
+            if expires_at is None or expires_at > datetime.datetime.utcnow():
+                print(f"Connection rejected for banned IP: {user_ip}")
+                return f"You are BANNED from the chat until {expires_at if expires_at else 'forever'}.", 403
+            else:
+                # The ban has expired, so we can remove it in the database
+                print(f"Deleting expired ban for IP: {user_ip}")
+                cursor.execute("DELETE FROM BanList WHERE target_ip = %s", (user_ip,))
+                conn.commit()
+
+    except Exception as err:
+        print("ERROR, ignoring (LOLz):", err)
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            conn.close()
 
     # if nickname not in globals.connected_usernames:
     #     socketio.emit('user_connected', nickname)
@@ -591,36 +617,6 @@ def index():
 
 @app.route('/login', methods=['POST'])
 def login():
-    user_ip = get_real_ip(request)
-    
-    try:
-        conn = db_pool.get_connection()
-        cursor = conn.cursor(dictionary=True) # dictionary=True makes result accessible by column name
-        
-        cursor.execute(
-            "SELECT expires_at FROM BanList WHERE target_ip = %s AND is_active = TRUE", (user_ip,)
-        )
-        ban_record = cursor.fetchone()
-        
-        if ban_record:
-            expires_at = ban_record['expires_at']
-            # If expires_at is NULL (permanent) or is a future date, reject connection.
-            if expires_at is None or expires_at > datetime.datetime.utcnow():
-                print(f"Connection rejected for banned IP: {user_ip}")
-                return f"You are BANNED from the chat until {expires_at if expires_at else 'forever'}.", 403
-            else:
-                # The ban has expired, so we can remove it in the database
-                print(f"Deleting expired ban for IP: {user_ip}")
-                cursor.execute("DELETE FROM BanList WHERE target_ip = %s", (user_ip,))
-                conn.commit()
-
-    except mysql.connector.Error as err:
-        print(f"Database error on connect: {err}")
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            conn.close()
     
     if request.form.get("password") == app.config['CHAT_SECRET_KEY']:
         if request.cookies.get("nickname"):
@@ -781,8 +777,13 @@ def ip_ban_users():
     duration = data.get('duration', 'permanent')  # Default to permanent if not specified
     expiry_date = get_ban_expiry(duration)
     
-    ips_to_ban = {globals.users_with_IP.get(user) for user in users_for_ip_ban if globals.users_with_IP.get(user)}
-    
+    users_with_ips = [
+        (user, globals.users_with_IP.get(user))
+        for user in users_for_ip_ban
+        if globals.users_with_IP.get(user)
+    ]
+
+
     if not ips_to_ban:
         return jsonify({"message": "Could not find IPs for any of the selected users."}), 404
 
@@ -795,14 +796,15 @@ def ip_ban_users():
         # This SQL statement will INSERT a new ban or UPDATE an existing one for the same IP.
         # It's a very efficient way to handle bans.
         sql = """
-            INSERT INTO BanList (target_ip, expires_at, is_active)
-            VALUES (%s, %s, TRUE)
+            INSERT INTO BanList (target_ip, target_username, expires_at, is_active)
+            VALUES (%s, %s, %s, TRUE)
             ON DUPLICATE KEY UPDATE
-                expires_at = VALUES(expires_at), is_active = TRUE
+                expires_at = VALUES(expires_at),
+                is_active = TRUE
         """
         
         # Prepare data for bulk insertion/update
-        ban_data = [(ip, expiry_date) for ip in ips_to_ban]
+        ban_data = [(ip, user, expiry_date) for user, ip in users_with_ips]
         cursor.executemany(sql, ban_data)
         conn.commit()
 
@@ -878,8 +880,30 @@ def jumpscare():
         globals.users_to_jumpscare.add(user)
         socketio.emit('force_jumpscare', {}, room=globals.users_with_sid.get(user))
     return jsonify({"message": "User(s) have been jumpscared."}), 200
-    
 
+
+@app.route("/admin/system-message", methods=["POST"])
+@app.route("/admin/user-message", methods=["POST"])
+@admin_required
+def send_message_admin():
+    data = request.get_json()
+    if not data or 'message' not in data:
+        return jsonify({"message": "Invalid request. 'message' key is missing."}), 400
+
+    message = data['message']
+    is_system = False
+    nickname = data.get('username', None)
+    if not nickname:
+        is_system = True
+    timestamp = datetime.datetime.now().isoformat()
+
+    if not is_system:
+        socketio.emit('chat_message', { 'message': message, 'nickname': nickname, 'timestamp': timestamp, 'system': False })
+        add_chatlog_entry(message, nickname, timestamp, globals.current_log_file, type="system" if is_system else "text")
+    elif is_system:
+        socketio.emit('system_message', { 'message': message })
+        #add_chatlog_entry(message, "KAC-Bot", timestamp, globals.current_log_file, type="system" if is_system else "text")
+    return jsonify({"message": "Message sent to chat."}), 200
 
 @app.route("/jumpscare/<path:filename>", methods=["GET"])
 def jumpscare_file(filename):

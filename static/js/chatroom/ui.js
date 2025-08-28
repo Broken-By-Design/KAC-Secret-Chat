@@ -161,6 +161,13 @@ var ChatApp = window.ChatApp || {};
         scrollToBottom();
     }
 
+    function addSystemMessageNoUser(message) {
+        const item = document.createElement("li");
+        item.innerHTML = utils.linkify(marked.parseInline(message));
+        messages.appendChild(item);
+        scrollToBottom();   
+    }
+
     function openImageOptions(file) {
         if (file.size > 5 * 1024 * 1024) {
             alert("No image larger than 5mb allowed!");
@@ -288,6 +295,7 @@ var ChatApp = window.ChatApp || {};
         addSystemMessage: addSystemMessage,
         addImageMessage: addImageMessage,
         addUserConnectedMessage: addUserConnectedMessage,
+        addSystemMessageNoUser: addSystemMessageNoUser,
         openImageOptions: openImageOptions,
         closeImageOptions: closeImageOptions,
         updateTypingIndicator: updateTypingIndicator,

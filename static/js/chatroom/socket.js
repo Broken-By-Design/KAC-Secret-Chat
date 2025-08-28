@@ -167,6 +167,10 @@ var ChatApp = window.ChatApp || {};
           cloak();
         });
 
+        socket.on("system_message", function (msg) {
+          ui.addSystemMessageNoUser(msg.message)
+        });
+
 
     }
 

@@ -2,21 +2,50 @@
 var AdminPanel = window.AdminPanel || {};
 
 document.addEventListener("DOMContentLoaded", function () {
+    // initial run
+    const iframe = document.getElementById("chatPreview");
+      iframe.src = `https://${location.hostname}`;
+
     const usersListElement = document.querySelector("#usersList ul");
-    const selectedUsersTitle = document.querySelector(".actions_container h1");
+    const selectedUsersTitle = document.querySelector(".section_container h1");
     const refreshBtn = document.getElementById("refreshBtn");
-    const kickBtn = document.getElementById("kickBtn"); // Assuming this is the kick button
+    const kickBtn = document.getElementById("kickBtn");
+
+    // Message elements
+    const successMessage = document.getElementById("successMessage");
+    const failMessage = document.getElementById("failMessage");
 
     // Global commands
     const resetChatBtn = document.getElementById("resetChatBtn");
     const reloadAllUsersBtn = document.getElementById("reloadAllUsersBtn");
     const cloakAllUsersBtn = document.getElementById("cloakAllUsersBtn");
 
-    // troll Commands, LOLz
+    // Troll Commands
     const jumpscareBtn = document.getElementById("jumpscareBtn");
     const crashBtn = document.getElementById("crashBtn");
 
+    // Message-based ones
+    const systemMessageForm = document.getElementById("systemMessageForm");
+    const userMessageForm = document.getElementById("userMessageForm");
+
+    const systemMessageInput = document.getElementById("systemMessageInput");
+    const userMessageNameInput = document.getElementById(
+        "userMessageNameInput"
+    );
+    const userMessageContentsInput = document.getElementById(
+        "userMessageContentsInput"
+    );
+
     let selectedUsers = [];
+
+    // Function to show a message and then hide it
+    const showMessage = (element, message, duration = 3000) => {
+        element.textContent = message;
+        element.style.display = "block";
+        setTimeout(() => {
+            element.style.display = "none";
+        }, duration);
+    };
 
     // Function to fetch users and render them
     const fetchAndRenderUsers = async () => {
@@ -26,7 +55,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 throw new Error("Network response was not ok");
             }
             const users = await response.json();
-            console.log(users);
             // Clear the current list
             usersListElement.innerHTML = "";
 
@@ -65,7 +93,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Function to perform an action on selected users
     const performAction = async (action, details = {}) => {
         if (selectedUsers.length === 0) {
-            alert("Please select at least one user.");
+            showMessage(failMessage, "Please select at least one user.");
             return;
         }
 
@@ -79,16 +107,18 @@ document.addEventListener("DOMContentLoaded", function () {
             });
 
             if (response.ok) {
-                alert(`Action '${action}' successful.`);
+                showMessage(successMessage, `Action '${action}' successful.`);
                 fetchAndRenderUsers(); // Refresh the list after the action
             } else {
                 const errorData = await response.json();
-                alert(`Error: ${errorData.message}`);
+                showMessage(failMessage, `Error: ${errorData.message}`);
             }
         } catch (error) {
             console.error(`Failed to perform action '${action}':`, error);
+            showMessage(failMessage, "An unexpected error occurred.");
         }
     };
+
     const performActionNoUser = async (action, details = {}) => {
         try {
             const response = await fetch(`/admin/${action}`, {
@@ -100,15 +130,85 @@ document.addEventListener("DOMContentLoaded", function () {
             });
 
             if (response.ok) {
+                showMessage(successMessage, `Action '${action}' successful.`);
                 fetchAndRenderUsers(); // Refresh the list after the action
             } else {
                 const errorData = await response.json();
-                alert(`Error: ${errorData.message}`);
+                showMessage(failMessage, `Error: ${errorData.message}`);
             }
         } catch (error) {
             console.error(`Failed to perform action '${action}':`, error);
+            showMessage(failMessage, "An unexpected error occurred.");
         }
     };
+
+    const performActionOneUser = async (action, details = {}) => {
+        if (selectedUsers.length > 1) {
+            showMessage(failMessage, "Please only select one user.");
+            return;
+        }
+        if (selectedUsers.length === 0) {
+            showMessage(failMessage, "Please select a user.");
+            return;
+        }
+
+        try {
+            const response = await fetch(`/admin/${action}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ users: selectedUsers, ...details }),
+            });
+
+            if (response.ok) {
+                showMessage(successMessage, `Action '${action}' successful.`);
+                fetchAndRenderUsers(); // Refresh the list after the action
+            } else {
+                const errorData = await response.json();
+                showMessage(failMessage, `Error: ${errorData.message}`);
+            }
+        } catch (error) {
+            console.error(`Failed to perform action '${action}':`, error);
+            showMessage(failMessage, "An unexpected error occurred.");
+        }
+    };
+
+    systemMessageForm.addEventListener("submit", async function (event) {
+        // 1. Prevent the default form submission which causes a page reload
+        event.preventDefault();
+
+        // 2. Get the message from the input field
+        const message = systemMessageInput.value;
+
+        // Basic validation: ensure the message is not empty
+        if (!message.trim()) {
+            showMessage(failMessage, "System message cannot be empty.");
+            return; // Stop the function
+        }
+
+        performActionNoUser("system-message", { message: message });
+    });
+
+    userMessageForm.addEventListener("submit", async function (event) {
+        // 1. Prevent the default form submission
+        event.preventDefault();
+
+        // 2. Get the values from the input fields
+        const username = userMessageNameInput.value;
+        const message = userMessageContentsInput.value;
+
+        // Basic validation
+        if (!username.trim() || !message.trim()) {
+            showMessage(failMessage, "Username and message cannot be empty.");
+            return; // Stop the function
+        }
+
+        performActionNoUser("user-message", {
+            message: message,
+            username: username,
+        });
+    });
 
     // Event Listeners
     refreshBtn.addEventListener("click", fetchAndRenderUsers);
@@ -133,7 +233,8 @@ document.addEventListener("DOMContentLoaded", function () {
     jumpscareBtn.addEventListener("click", () => performAction("jumpscare"));
 
     crashBtn.addEventListener("click", () =>
-        alert(
+        showMessage(
+            failMessage,
             "The crash command has not been completed yet. Please check back later!"
         )
     );

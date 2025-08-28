@@ -36,9 +36,12 @@
                 <button id="1dayBanBtn"><b>1 day</b> Ban User(s)</button>
                 <button id="1weekBanBtn"><b>1 week</b> Ban User(s)</button>
                 <button id="IPBanBtn"><b>Perma / IP</b> Ban User(s)</button>
-                <h1>Troll commands (DO NOT WORK YET)</h1>
+                <h1>Troll commands</h1>
                 <button id="jumpscareBtn"><b>Jumpscare</b> User(s)</button>
                 <button id="crashBtn"><b>Crash</b> User(s) chromebook</button>
+                <span id="successMessage" style="display: none;"></span>
+                <span id="failMessage" style="display: none;"></span>
+
             </div>
         </div>
         <div class="row_container">
@@ -47,11 +50,32 @@
                 <button id="resetChatBtn"><b>Reset</b> the chat history</button>
                 <button id="reloadAllUsersBtn"><b>Reload</b> all users</button>
                 <button id="cloakAllUsersBtn"><b>Cloak</b> all users</button>
-
             </div>
             <div class="section_container">
-                <h1>Extra Commands</h1>
-                <p>Nothing here yet, check back soon!</p>
+                <h1>Messages</h1>
+                <!-- System Message Form -->
+                <form id="systemMessageForm">
+                    <div class="input-group">
+                        <input type="text" id="systemMessageInput" placeholder="Send a system message">
+                        <button type="submit">Send</button>
+                    </div>
+                </form>
+
+                <h1 style="margin-top: 2rem;">Send a message as a user</h1>
+                <!-- User Message Form -->
+                <form id="userMessageForm">
+                    <div class="input-group">
+                        <input type="text" id="userMessageNameInput" placeholder="Username for message">
+                        <input type="text" id="userMessageContentsInput" placeholder="Message">
+                        <button type="submit">Send</button>
+                    </div>
+            </div>
+            
+        </div>
+        <div class="row_container">
+            <div class="section_container" style="height: 30vh;">
+                <h1>Chat Preview</h1>
+                <iframe id="chatPreview" style="width: 100%; height: 80%;"></iframe>
             </div>
         </div>
     </div>
