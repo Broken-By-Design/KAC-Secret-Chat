@@ -151,7 +151,8 @@ var ChatApp = window.ChatApp || {};
         socket.on("chat_cleared", function () {
             // Assuming your chat messages are in an element with id 'chat-messages'
             ui.messages.innerHTML = "";
-            console.log("Chat was cleared by an admin.");
+            alert("The chat has been cleared by an admin.");
+
         });
 
         socket.on("force_reload", function () {
