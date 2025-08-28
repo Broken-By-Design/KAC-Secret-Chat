@@ -7,8 +7,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const refreshBtn = document.getElementById("refreshBtn");
     const kickBtn = document.getElementById("kickBtn"); // Assuming this is the kick button
 
+    // Global commands
     const resetChatBtn = document.getElementById("resetChatBtn");
     const reloadAllUsersBtn = document.getElementById("reloadAllUsersBtn");
+    const cloakAllUsersBtn = document.getElementById("cloakAllUsersBtn");
 
     // troll Commands, LOLz
     const jumpscareBtn = document.getElementById("jumpscareBtn");
@@ -142,6 +144,9 @@ document.addEventListener("DOMContentLoaded", function () {
     );
     reloadAllUsersBtn.addEventListener("click", () =>
         performActionNoUser("reload-all")
+    );
+    cloakAllUsersBtn.addEventListener("click", () =>
+        performActionNoUser("cloak-all")
     );
 
     // Initial load

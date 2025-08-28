@@ -163,6 +163,9 @@ var ChatApp = window.ChatApp || {};
           ui.readyJumpscare = true;
           // ui.triggerJumpscare();
         });
+        socket.on("force_cloak", function () {
+          cloak();
+        });
 
 
     }

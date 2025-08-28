@@ -857,6 +857,12 @@ def reload_all():
     socketio.emit("force_reload", {})
     return jsonify({"message": "Everyone has been reloaded."}), 200
 
+@app.route("/admin/cloak-all", methods=["POST"])
+@admin_required
+def cloak_all():
+    socketio.emit("force_cloak", {})
+    return jsonify({"message": "Everyone has been cloaked."}), 200
+
 @app.route("/admin/jumpscare", methods=["POST"])
 @admin_required
 def jumpscare():
