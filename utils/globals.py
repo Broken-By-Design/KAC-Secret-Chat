@@ -12,3 +12,5 @@ ai_prompt_history = []
 users_with_sid = {}
 
 users_with_IP = {}
+
+users_to_jumpscare = set()

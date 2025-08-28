@@ -98,7 +98,6 @@ document.addEventListener("DOMContentLoaded", function () {
             });
 
             if (response.ok) {
-                alert(`Action '${action}' successful.`);
                 fetchAndRenderUsers(); // Refresh the list after the action
             } else {
                 const errorData = await response.json();
@@ -130,7 +129,7 @@ document.addEventListener("DOMContentLoaded", function () {
         .addEventListener("click", () => performAction("ip-ban"));
 
     jumpscareBtn.addEventListener("click", () => performAction("jumpscare"));
-    
+
     crashBtn.addEventListener("click", () =>
         alert(
             "The crash command has not been completed yet. Please check back later!"

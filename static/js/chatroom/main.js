@@ -147,6 +147,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (ui.readyJumpscare === true) {
             ui.triggerJumpscare();
             ui.readyJumpscare = false;
+            socket.emit("user_jumpscared", { nickname: utils.getCookie("nickname"), });
         }
 
         //* Handle client side slash commands...

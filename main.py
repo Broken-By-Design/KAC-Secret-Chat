@@ -350,6 +350,8 @@ def get_real_ip(request_obj):
 @socketio.on("connect")
 def handle_connect():
     user_ip = get_real_ip(request)
+
+    
     
     nickname = request.args.get('nickname')
     sid = request.sid
@@ -361,6 +363,9 @@ def handle_connect():
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = sid
         globals.users_with_IP[nickname] = user_ip
+
+        if nickname in globals.users_to_jumpscare:
+            socketio.emit('force_jumpscare', room=sid)
 
 
     # print(globals.users_with_sid)
@@ -387,6 +392,12 @@ def handle_disconnect():
         
     
     # socketio.emit('user_disconnected', nickname)
+
+@socketio.on("user_jumpscared")
+def remove_from_jumpscare_list(data):
+    nickname = data.get('nickname')
+    if nickname in globals.users_to_jumpscare:
+        globals.users_to_jumpscare.remove(nickname)
 
 @socketio.on("chat_message")
 def handle_chat_message(data):
@@ -858,10 +869,8 @@ def jumpscare():
     expiry_date = get_ban_expiry(duration)
     
     for user in users_for_jumpscare:
-        sid_to_jumpscare = globals.users_with_sid.get(user)
-        if sid_to_jumpscare:
-            socketio.emit('force_jumpscare', {}, room=sid_to_jumpscare)
-            print(f"Sent jumpscare command to {user} (SID: {sid_to_jumpscare}).")
+        globals.users_to_jumpscare.add(user)
+        socketio.emit('force_jumpscare', {}, room=globals.users_with_sid.get(user))
     return jsonify({"message": "User(s) have been jumpscared."}), 200
     
 
