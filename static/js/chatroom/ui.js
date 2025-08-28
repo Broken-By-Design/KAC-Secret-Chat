@@ -38,6 +38,12 @@ var ChatApp = window.ChatApp || {};
     let missedCount = 0;
     const originalTitle = document.title;
 
+    // Jumpscare info
+    const jumpscareAudio = new Audio("/jumpscare/sound.wav");
+    const jumpscareImage = new Image();
+    jumpscareImage.src = "/jumpscare/image.png";
+    var readyJumpscare = false;
+
     // --- PRIVATE FUNCTIONS (helper functions used only by this module) ---
 
     function scrollToBottom(force = false, minHeight = 200) {
@@ -59,9 +65,9 @@ var ChatApp = window.ChatApp || {};
         if (!message || !nickname || !timestamp) return;
 
         // const formattedMessage = utils.linkify(message);
-        const formattedMessage = utils.linkify(marked.parseInline(
-            HtmlSanitizer.SanitizeHtml(message)
-        ));
+        const formattedMessage = utils.linkify(
+            marked.parseInline(HtmlSanitizer.SanitizeHtml(message))
+        );
         const item = document.createElement("li");
 
         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
@@ -79,14 +85,16 @@ var ChatApp = window.ChatApp || {};
     function addHighlightedMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
 
-        const formattedMessage = utils.linkify(marked.parseInline(
-            HtmlSanitizer.SanitizeHtml(message)
-        ));
+        const formattedMessage = utils.linkify(
+            marked.parseInline(HtmlSanitizer.SanitizeHtml(message))
+        );
         const item = document.createElement("li");
         item.classList.add("highlight");
         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
             nickname
-        )}:</b> ${formattedMessage} <span id="timestamp">${utils.formatTime(timestamp)}</span>`;
+        )}:</b> ${formattedMessage} <span id="timestamp">${utils.formatTime(
+            timestamp
+        )}</span>`;
         messages.appendChild(item);
 
         const elementHeight = item.offsetHeight;
@@ -219,6 +227,43 @@ var ChatApp = window.ChatApp || {};
         });
     }
 
+    function triggerJumpscare(
+        imagePath = "/jumpscare/image.png",
+        soundPath = "/jumpscare/sound.wav",
+        duration = 3000
+    ) {
+        // Use preloaded audio or create a new one if a different path is provided
+        const audio =
+            soundPath === jumpscareAudio.src
+                ? jumpscareAudio
+                : new Audio(soundPath);
+
+        // Play the sound
+        audio.play().catch((error) => {
+            // Autoplay was prevented.
+            console.error("Jumpscare sound could not be played:", error);
+        });
+
+        // Create the jumpscare image element
+        const jumpscareImg = document.createElement("img");
+        // Use the preloaded image src or a new one
+        jumpscareImg.src =
+            imagePath === jumpscareImage.src ? jumpscareImage.src : imagePath;
+        jumpscareImg.alt = "Jumpscare";
+        jumpscareImg.id = "jumpscare-image"; // Assign an ID for easier CSS targeting
+
+        // Append the image to the body
+        document.body.appendChild(jumpscareImg);
+
+        // Remove the image after the specified duration
+        setTimeout(() => {
+            const imgToRemove = document.getElementById("jumpscare-image");
+            if (imgToRemove) {
+                document.body.removeChild(imgToRemove);
+            }
+        }, duration);
+    }
+
     // Run the initialization
     initializeEventListeners();
 
@@ -235,6 +280,7 @@ var ChatApp = window.ChatApp || {};
         botQuestion: botQuestion,
         sendImageBtn: sendImageBtn,
         cancelBtn: cancelBtn,
+        readyJumpscare: readyJumpscare,
 
         // Expose functions that other modules need to call.
         addMessage: addMessage,
@@ -248,6 +294,7 @@ var ChatApp = window.ChatApp || {};
         clearChat: function () {
             messages.innerHTML = "";
         },
+        triggerJumpscare: triggerJumpscare,
 
         // Expose functions to manage the UI state.
         scrollToBottom: scrollToBottom,

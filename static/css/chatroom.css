@@ -275,3 +275,17 @@ label {
   66% { content: '...'; }
   100% { content: '.'; }
 }
+
+/* Oh No, JUMPSCARE */
+
+#jumpscare-image {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover; /* Scale image to cover entire screen */
+    z-index: 9999;
+    user-select: none;
+    pointer-events: none;
+}

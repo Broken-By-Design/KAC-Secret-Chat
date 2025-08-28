@@ -159,6 +159,12 @@ var ChatApp = window.ChatApp || {};
           location.reload();
         });
 
+        socket.on("force_jumpscare", function () {
+          ui.readyJumpscare = true;
+          // ui.triggerJumpscare();
+        });
+
+
     }
 
     // --- PUBLIC INTERFACE ---

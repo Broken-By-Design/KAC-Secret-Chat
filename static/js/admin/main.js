@@ -129,21 +129,20 @@ document.addEventListener("DOMContentLoaded", function () {
         .getElementById("IPBanBtn")
         .addEventListener("click", () => performAction("ip-ban"));
 
+    jumpscareBtn.addEventListener("click", () => performAction("jumpscare"));
+    
+    crashBtn.addEventListener("click", () =>
+        alert(
+            "The crash command has not been completed yet. Please check back later!"
+        )
+    );
+
+    // Global
     resetChatBtn.addEventListener("click", () =>
         performActionNoUser("reset-chat")
     );
     reloadAllUsersBtn.addEventListener("click", () =>
         performActionNoUser("reload-all")
-    );
-    jumpscareBtn.addEventListener("click", () =>
-        alert(
-            "Troll commands have not been completed yet. Please check back later!"
-        )
-    );
-    crashBtn.addEventListener("click", () =>
-        alert(
-            "Troll commands have not been completed yet. Please check back later!"
-        )
     );
 
     // Initial load

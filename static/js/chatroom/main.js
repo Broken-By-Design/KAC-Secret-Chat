@@ -144,6 +144,11 @@ document.addEventListener("DOMContentLoaded", function () {
             typing = false;
         }
 
+        if (ui.readyJumpscare === true) {
+            ui.triggerJumpscare();
+            ui.readyJumpscare = false;
+        }
+
         //* Handle client side slash commands...
 
         if (ui.input.value === "/cloak") {

@@ -846,6 +846,39 @@ def reload_all():
     socketio.emit("force_reload", {})
     return jsonify({"message": "Everyone has been reloaded."}), 200
 
+@app.route("/admin/jumpscare", methods=["POST"])
+@admin_required
+def jumpscare():
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+        
+    users_for_jumpscare = data['users']
+    duration = data.get('duration', 'permanent')  # Default to permanent if not specified
+    expiry_date = get_ban_expiry(duration)
+    
+    for user in users_for_jumpscare:
+        sid_to_jumpscare = globals.users_with_sid.get(user)
+        if sid_to_jumpscare:
+            socketio.emit('force_jumpscare', {}, room=sid_to_jumpscare)
+            print(f"Sent jumpscare command to {user} (SID: {sid_to_jumpscare}).")
+    return jsonify({"message": "User(s) have been jumpscared."}), 200
+    
+
+
+@app.route("/jumpscare/<path:filename>", methods=["GET"])
+def jumpscare_file(filename):
+    jumpscare_dir = os.path.join(app.root_path, "jumpscare")
+
+    safe_path = os.path.abspath(os.path.join(jumpscare_dir, filename))
+    if not safe_path.startswith(jumpscare_dir):
+        abort(403)
+
+    if not os.path.isfile(safe_path):
+        abort(404)
+
+    return send_file(safe_path), 200
+
 def run_scheduled_task():
     scheduler_thread = Thread(target=schedule_task)
     scheduler_thread.daemon = True
