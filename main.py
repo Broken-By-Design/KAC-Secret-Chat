@@ -351,37 +351,6 @@ def get_real_ip(request_obj):
 def handle_connect():
     user_ip = get_real_ip(request)
     
-    try:
-        conn = db_pool.get_connection()
-        cursor = conn.cursor(dictionary=True) # dictionary=True makes result accessible by column name
-        
-        cursor.execute(
-            "SELECT expires_at FROM BanList WHERE target_ip = %s AND is_active = TRUE", (user_ip,)
-        )
-        ban_record = cursor.fetchone()
-        
-        if ban_record:
-            expires_at = ban_record['expires_at']
-            # If expires_at is NULL (permanent) or is a future date, reject connection.
-            if expires_at is None or expires_at > datetime.datetime.utcnow():
-                print(f"Connection rejected for banned IP: {user_ip}")
-                return False  # This is how SocketIO rejects a connection
-            else:
-                # The ban has expired, so we can remove it in the database
-                print(f"Deactivating expired ban for IP: {user_ip}")
-                cursor.execute("DELETE FROM BanList WHERE target_ip = %s", (user_ip,))
-                conn.commit()
-
-    except mysql.connector.Error as err:
-        print(f"Database error on connect: {err}")
-        # accept connection if failed.
-
-    finally:
-        if 'cursor' in locals() and cursor:
-            cursor.close()
-        if 'conn' in locals() and conn:
-            conn.close()
-    
     nickname = request.args.get('nickname')
     sid = request.sid
     print(f"User connected: {nickname}")
@@ -611,6 +580,37 @@ def index():
 
 @app.route('/login', methods=['POST'])
 def login():
+    user_ip = get_real_ip(request)
+    
+    try:
+        conn = db_pool.get_connection()
+        cursor = conn.cursor(dictionary=True) # dictionary=True makes result accessible by column name
+        
+        cursor.execute(
+            "SELECT expires_at FROM BanList WHERE target_ip = %s AND is_active = TRUE", (user_ip,)
+        )
+        ban_record = cursor.fetchone()
+        
+        if ban_record:
+            expires_at = ban_record['expires_at']
+            # If expires_at is NULL (permanent) or is a future date, reject connection.
+            if expires_at is None or expires_at > datetime.datetime.utcnow():
+                print(f"Connection rejected for banned IP: {user_ip}")
+                return f"You are BANNED from the chat until {expires_at if expires_at else 'forever'}.", 403
+            else:
+                # The ban has expired, so we can remove it in the database
+                print(f"Deleting expired ban for IP: {user_ip}")
+                cursor.execute("DELETE FROM BanList WHERE target_ip = %s", (user_ip,))
+                conn.commit()
+
+    except mysql.connector.Error as err:
+        print(f"Database error on connect: {err}")
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if 'conn' in locals() and conn:
+            conn.close()
+    
     if request.form.get("password") == app.config['CHAT_SECRET_KEY']:
         if request.cookies.get("nickname"):
             response = make_response(redirect(url_for('index')))
