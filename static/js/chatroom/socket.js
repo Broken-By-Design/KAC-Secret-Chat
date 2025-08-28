@@ -152,26 +152,27 @@ var ChatApp = window.ChatApp || {};
             // Assuming your chat messages are in an element with id 'chat-messages'
             ui.messages.innerHTML = "";
             alert("The chat has been cleared by an admin.");
-
         });
 
         socket.on("force_reload", function () {
-          location.reload();
+            location.reload();
         });
 
         socket.on("force_jumpscare", function () {
-          ui.readyJumpscare = true;
-          // ui.triggerJumpscare();
+            ui.readyJumpscare = true;
+            // ui.triggerJumpscare();
         });
         socket.on("force_cloak", function () {
-          cloak();
+            cloak();
         });
 
         socket.on("system_message", function (msg) {
-          ui.addSystemMessageNoUser(msg.message)
+            ui.addSystemMessageNoUser(msg.message);
         });
 
-
+        socket.on("display_banned", function (data) {
+            ui.showBannedMessage(data.expires_at);
+        });
     }
 
     // --- PUBLIC INTERFACE ---

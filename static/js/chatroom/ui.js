@@ -165,7 +165,7 @@ var ChatApp = window.ChatApp || {};
         const item = document.createElement("li");
         item.innerHTML = utils.linkify(marked.parseInline(message));
         messages.appendChild(item);
-        scrollToBottom();   
+        scrollToBottom();
     }
 
     function openImageOptions(file) {
@@ -234,6 +234,27 @@ var ChatApp = window.ChatApp || {};
         });
     }
 
+    function showBannedMessage(expires_at = null) {
+        // Clear the chat window
+        messages.innerHTML = "";
+
+        const item = document.createElement("li");
+
+        // Create a more user-friendly message
+        if (expires_at) {
+            item.innerHTML = `You have been <b style="color: red;">banned</b> from the chat. Your ban will expire on ${expires_at}.`;
+        } else {
+            item.innerHTML = `You have been <b style="color: red;">permanently banned</b> from the chat.`;
+        }
+
+        messages.appendChild(item);
+        document.getElementById("input").disabled = true;
+        document.getElementById("input").placeholder =
+            "You have been disconnected.";
+        document.querySelector('button[type="submit"]').disabled = true;
+        scrollToBottom();
+    }
+
     function triggerJumpscare(
         imagePath = "/jumpscare/image.png",
         soundPath = "/jumpscare/sound.wav",
@@ -296,6 +317,7 @@ var ChatApp = window.ChatApp || {};
         addImageMessage: addImageMessage,
         addUserConnectedMessage: addUserConnectedMessage,
         addSystemMessageNoUser: addSystemMessageNoUser,
+        showBannedMessage: showBannedMessage,
         openImageOptions: openImageOptions,
         closeImageOptions: closeImageOptions,
         updateTypingIndicator: updateTypingIndicator,

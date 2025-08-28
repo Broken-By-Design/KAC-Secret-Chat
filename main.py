@@ -66,15 +66,19 @@ db_config = {
     'database': os.getenv('DB_NAME'),
 }
 
-try:
-    # A connection pool is much more efficient than creating new connections for every request.
-    db_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="chat_pool",
-                                                          pool_size=5,
-                                                          **db_config)
-    print("Successfully created database connection pool.")
-except mysql.connector.Error as err:
-    print(f"Error creating database connection pool: {err}")
-    db_pool = None
+db_pool = None
+while db_pool is None:
+    try:
+        print("Attempting to connect to the database...")
+        db_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="chat_pool",
+                                                              pool_size=5,
+                                                              **db_config)
+        print("✅ Successfully created database connection pool.")
+        # If the connection is successful, the loop will exit.
+    except mysql.connector.Error as err:
+        print(f"⚠️ Database connection failed: {err}")
+        print("Retrying in 5 seconds...")
+        time.sleep(5)
 
 
 ai_client = genai.Client(api_key=app.config['GEMINI_API_KEY'])
@@ -354,33 +358,48 @@ def handle_connect():
     sid = request.sid
     print(f"User connected: {nickname}")
 
+    conn = None
+    cursor = None
     try:
         conn = db_pool.get_connection()
-        cursor = conn.cursor(dictionary=True) # dictionary=True makes result accessible by column name
+        cursor = conn.cursor(dictionary=True)
         
+        # --- LOGICAL FIX: Query by IP address only ---
         cursor.execute(
-            "SELECT expires_at FROM BanList WHERE target_ip = %s AND target_username = %s AND is_active = TRUE", (user_ip, nickname)
+            "SELECT target_username, expires_at FROM BanList WHERE target_ip = %s AND is_active = TRUE", (user_ip,)
         )
         ban_record = cursor.fetchone()
         
         if ban_record:
             expires_at = ban_record['expires_at']
-            # If expires_at is NULL (permanent) or is a future date, reject connection.
+            
+            # Check if the ban is active
             if expires_at is None or expires_at > datetime.datetime.utcnow():
-                print(f"Connection rejected for banned IP: {user_ip}")
-                return f"You are BANNED from the chat until {expires_at if expires_at else 'forever'}.", 403
+                banned_username = ban_record['target_username']
+                print(f"Connection rejected for banned user '{banned_username}' at IP: {user_ip}")
+
+                # --- CRITICAL BUG FIX: Handle None for permanent bans ---
+                expiry_str = None
+                if expires_at:
+                    expiry_str = expires_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+                
+                # Now we can safely emit the event
+                socketio.emit('display_banned', {'expires_at': expiry_str}, room=sid, callback=lambda: disconnect(sid))
+
+                return
+
             else:
-                # The ban has expired, so we can remove it in the database
-                print(f"Deleting expired ban for IP: {user_ip}")
-                cursor.execute("DELETE FROM BanList WHERE target_ip = %s", (user_ip,))
+                # The ban has expired, so we can deactivate it
+                print(f"Deactivating expired ban for IP: {user_ip}")
+                cursor.execute("UPDATE BanList SET is_active = FALSE WHERE target_ip = %s", (user_ip,))
                 conn.commit()
 
-    except Exception as err:
-        print("ERROR, ignoring (LOLz):", err)
+    except mysql.connector.Error as err:
+        print(f"Database error during connection check: {err}")
     finally:
-        if 'cursor' in locals() and cursor:
+        if cursor:
             cursor.close()
-        if 'conn' in locals() and conn:
+        if conn:
             conn.close()
 
     # if nickname not in globals.connected_usernames:
@@ -783,9 +802,11 @@ def ip_ban_users():
         if globals.users_with_IP.get(user)
     ]
 
-
-    if not ips_to_ban:
+    if not users_with_ips:
         return jsonify({"message": "Could not find IPs for any of the selected users."}), 404
+
+    ips_to_ban = {ip for _, ip in users_with_ips}
+
 
     print(f"--- IP BAN ACTION: Banning IPs {', '.join(ips_to_ban)} for {duration} ---")
 
