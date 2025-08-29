@@ -172,7 +172,6 @@ var ChatApp = window.ChatApp || {};
 
         socket.on("display_banned", function (data) {
             ui.showBannedMessage(data.expires_at);
-            socket.disconnect()
         });
     }
 

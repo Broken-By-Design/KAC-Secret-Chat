@@ -362,9 +362,8 @@ def handle_connect():
     cursor = None
     try:
         conn = db_pool.get_connection()
-        cursor = conn.cursor(dictionary=True)
-        
-        # --- LOGICAL FIX: Query by IP address only ---
+        cursor = conn.cursor(dictionary=True)   
+
         cursor.execute(
             "SELECT target_username, expires_at FROM BanList WHERE target_ip = %s AND target_username = %s AND is_active = TRUE", (user_ip, nickname)
         )
@@ -378,14 +377,13 @@ def handle_connect():
                 banned_username = ban_record['target_username']
                 print(f"Connection rejected for banned user '{banned_username}' at IP: {user_ip}")
 
-                # --- CRITICAL BUG FIX: Handle None for permanent bans ---
                 expiry_str = None
                 if expires_at:
                     expiry_str = expires_at.strftime("%Y-%m-%d %H:%M:%S UTC")
                 
-                # Now we can safely emit the event
-                socketio.emit('display_banned', {'expires_at': expiry_str}, room=sid, callback=lambda: disconnect(sid))
-
+                # return False, "banned"
+                socketio.emit('display_banned', {'expires_at': expiry_str}, room=sid)
+                # disconnect(sid) 
                 return
 
             else:
@@ -839,8 +837,9 @@ def ip_ban_users():
             conn.close()
 
     # After banning, kick all users from those IPs
+    banned_users = {user for user, _ in users_with_ips}
     for user, user_ip in list(globals.users_with_IP.items()):
-        if user in [user for user, _ in users_with_ips]:
+        if user in banned_users:
             sid_to_kick = globals.users_with_sid.get(user)
             if sid_to_kick:
                 socketio.emit('force_logout', {}, room=sid_to_kick)
@@ -848,6 +847,11 @@ def ip_ban_users():
                 disconnect(sid_to_kick, namespace='/')
     
     return jsonify({"message": f"Successfully banned and kicked users from IPs: {', '.join(ips_to_ban)}"}), 200
+
+@app.route("/banned", methods=['GET'])
+def banned_page():
+    expiry = request.args.get('expires_at')
+    return render_template('BANNED.html', expiry=expiry)
 
 @app.route("/admin/reset-chat", methods=["POST"])
 @admin_required
@@ -920,9 +924,9 @@ def send_message_admin():
 
     if not is_system:
         socketio.emit('chat_message', { 'message': message, 'nickname': nickname, 'timestamp': timestamp, 'system': False })
-        add_chatlog_entry(message, nickname, timestamp, globals.current_log_file, type="system" if is_system else "text")
+        add_chatlog_entry(message, nickname, timestamp, globals.current_log_file)
     elif is_system:
-        socketio.emit('system_message', { 'message': message })
+        socketio.emit('system_message', { 'message': message, 'highlight': True })
         #add_chatlog_entry(message, "KAC-Bot", timestamp, globals.current_log_file, type="system" if is_system else "text")
     return jsonify({"message": "Message sent to chat."}), 200
 

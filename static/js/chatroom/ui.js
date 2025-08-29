@@ -238,6 +238,14 @@ var ChatApp = window.ChatApp || {};
     }
 
     function showBannedMessage(expires_at = null) {
+        if (expires_at) {
+            const encoded = encodeURIComponent(expires_at);
+            location.replace(`/banned?expires_at=${encoded}`);
+        } else {
+            location.replace("/banned");
+        }
+        return;
+
         // Clear the chat window
         messages.innerHTML = "";
 
