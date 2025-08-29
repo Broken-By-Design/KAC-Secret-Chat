@@ -366,7 +366,7 @@ def handle_connect():
         
         # --- LOGICAL FIX: Query by IP address only ---
         cursor.execute(
-            "SELECT target_username, expires_at FROM BanList WHERE target_ip = %s AND is_active = TRUE", (user_ip,)
+            "SELECT target_username, expires_at FROM BanList WHERE target_ip = %s AND target_username = %s AND is_active = TRUE", (user_ip, nickname)
         )
         ban_record = cursor.fetchone()
         
@@ -840,7 +840,7 @@ def ip_ban_users():
 
     # After banning, kick all users from those IPs
     for user, user_ip in list(globals.users_with_IP.items()):
-        if user_ip in ips_to_ban:
+        if user in users_with_ips:
             sid_to_kick = globals.users_with_sid.get(user)
             if sid_to_kick:
                 socketio.emit('force_logout', {}, room=sid_to_kick)
