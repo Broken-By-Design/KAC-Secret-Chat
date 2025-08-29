@@ -71,7 +71,7 @@ while db_pool is None:
     try:
         print("Attempting to connect to the database...")
         db_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="chat_pool",
-                                                              pool_size=5,
+                                                              pool_size=10,
                                                               **db_config)
         print("✅ Successfully created database connection pool.")
         # If the connection is successful, the loop will exit.
