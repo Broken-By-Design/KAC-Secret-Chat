@@ -840,7 +840,7 @@ def ip_ban_users():
 
     # After banning, kick all users from those IPs
     for user, user_ip in list(globals.users_with_IP.items()):
-        if user in users_with_ips:
+        if user in [user for user, _ in users_with_ips]:
             sid_to_kick = globals.users_with_sid.get(user)
             if sid_to_kick:
                 socketio.emit('force_logout', {}, room=sid_to_kick)
