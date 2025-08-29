@@ -40,6 +40,9 @@ var ChatApp = window.ChatApp || {};
 
     // Jumpscare info
     const jumpscareAudio = new Audio("/jumpscare/sound.wav");
+    jumpscareAudio.preload = "auto";
+    jumpscareAudio.load();
+
     const jumpscareImage = new Image();
     jumpscareImage.src = "/jumpscare/image.png";
     var readyJumpscare = false;
@@ -267,6 +270,7 @@ var ChatApp = window.ChatApp || {};
                 : new Audio(soundPath);
 
         // Play the sound
+        audio.currentTime = 0.3;
         audio.play().catch((error) => {
             // Autoplay was prevented.
             console.error("Jumpscare sound could not be played:", error);
