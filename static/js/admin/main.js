@@ -4,7 +4,7 @@ var AdminPanel = window.AdminPanel || {};
 document.addEventListener("DOMContentLoaded", function () {
     // initial run
     const iframe = document.getElementById("chatPreview");
-      iframe.src = `https://${location.hostname}`;
+    iframe.src = `https://${location.hostname}`;
 
     const usersListElement = document.querySelector("#usersList ul");
     const selectedUsersTitle = document.querySelector(".section_container h1");
@@ -216,19 +216,35 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- Wire up all your action buttons ---
     kickBtn.addEventListener("click", () => performAction("kick"));
-    document
-        .getElementById("1dayBanBtn")
-        .addEventListener("click", () =>
-            performAction("ban", { duration: "1d" })
-        );
-    document
-        .getElementById("1weekBanBtn")
-        .addEventListener("click", () =>
-            performAction("ban", { duration: "7d" })
-        );
-    document
-        .getElementById("IPBanBtn")
-        .addEventListener("click", () => performAction("ip-ban"));
+    document.getElementById("1dayBanBtn").addEventListener("click", () => {
+        if (
+            confirm(
+                "This command is very dangerous and irreversible. Are you sure you want to proceed?"
+            )
+        ) {
+            performAction("ban", { duration: "1d" });
+        }
+    });
+    document.getElementById("1weekBanBtn").addEventListener("click", () => {
+        if (
+            confirm(
+                "This command is very dangerous and irreversible. Are you sure you want to proceed?"
+            )
+        ) {
+            performAction("ban", { duration: "7d" });
+        }
+    });
+    document.getElementById("IPBanBtn").addEventListener("click", () => {
+        if (
+            confirm(
+                "This command is very dangerous and irreversible. Are you sure you want to proceed?"
+            )
+        ) {
+            if (confirm("Are you absolutely sure? This action is PERMANENT!")) {
+                performAction("ip-ban");
+            }
+        }
+    });
 
     jumpscareBtn.addEventListener("click", () => performAction("jumpscare"));
 
