@@ -255,6 +255,7 @@ var ChatApp = window.ChatApp || {};
         document.getElementById("input").placeholder =
             "You have been disconnected.";
         document.querySelector('button[type="submit"]').disabled = true;
+        document.getElementById("openFile").disabled = true;
         scrollToBottom();
     }
 
