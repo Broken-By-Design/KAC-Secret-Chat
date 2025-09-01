@@ -1,10 +1,11 @@
 import eventlet
 eventlet.monkey_patch()
 
-
 import os
 import glob
 import datetime
+from zoneinfo import ZoneInfo
+from datetime import timezone
 from dotenv import load_dotenv
 import schedule
 # from threading import Thread
@@ -85,6 +86,31 @@ def check_if_kicked():
         
         return redirect(url_for('index'))
 
+@app.before_request
+def check_ban_status():
+    """
+    Runs before every request to check if the user's IP is in the
+    database's BanList. If so, it stops the request and shows the banned page.
+    """
+    # We don't need to run this check on the banned page itself, or we'll get a redirect loop.
+    if request.endpoint == 'banned_page' or request.path.startswith('/static/') or request.path.startswith('/admin'):
+        return
+
+    user_ip = get_real_ip(request)
+    user_nickname = session.get('nickname')
+    
+    if f"{user_nickname}@{user_ip}" in globals.banned_ips_cache:
+        expires_at_utc = globals.banned_ips_cache[f"{user_nickname}@{user_ip}"]
+        if expires_at_utc is None or expires_at_utc > datetime.datetime.utcnow():
+            if expires_at_utc:
+                chicago_tz = ZoneInfo("America/Chicago")
+                expires_at_utc_aware = expires_at_utc.replace(tzinfo=timezone.utc)
+                expires_at_chicago = expires_at_utc_aware.astimezone(chicago_tz)
+                expiry_str = expires_at_chicago.strftime("%Y-%m-%d %H:%M:%S %Z")
+            else:
+                expiry_str = "Permanent"
+            
+            return render_template('BANNED.html', expiry=expiry_str)
 
 db_config = {
     'host': os.getenv('DB_HOST'),
@@ -105,8 +131,8 @@ while db_pool is None:
         # If the connection is successful, the loop will exit.
     except mysql.connector.Error as err:
         print(f"⚠️ Database connection failed: {err}")
-        print("Retrying in 5 seconds...")
-        time.sleep(5)
+        print("Retrying in 3 seconds...")
+        time.sleep(3)
 
 
 ai_client = genai.Client(api_key=app.config['GEMINI_API_KEY'])
@@ -124,6 +150,11 @@ with open("ai_personality.txt", "r") as f:
 
 _image_buffers: dict[str, list[bytes]] = defaultdict(list)
 
+def run_periodic_ban_sync():
+    """A daemon thread that periodically re-syncs the ban list."""
+    while True:
+        eventlet.sleep(300) 
+        sync_ban_list_from_db()
 
 def clear_chatlogs():
     # global globals.current_log_file
@@ -379,6 +410,38 @@ def get_real_ip(request_obj):
     # 3. Final fallback to the direct connection address.
     return request_obj.remote_addr
 
+def sync_ban_list_from_db():
+    print("SYNCING BAN LIST: Reloading active bans from database into cache...")
+    
+    conn = None
+    cursor = None
+    try:
+        conn = db_pool.get_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Select all bans that are currently marked as active
+        cursor.execute("SELECT target_ip, target_username, expires_at FROM BanList WHERE is_active = TRUE")
+        active_bans = cursor.fetchall()
+        
+        temp_cache = {}
+        for ban in active_bans:
+            # Check if the ban has expired right here. No need to cache expired bans.
+            expires_at = ban['expires_at']
+            if expires_at is None or expires_at > datetime.datetime.utcnow():
+                temp_cache[f"{ban['target_username']}@{ban['target_ip']}"] = expires_at
+
+        # Atomically replace the old cache with the new one
+        globals.banned_ips_cache = temp_cache
+        
+        print(f"SYNC COMPLETE: Loaded {len(globals.banned_ips_cache)} active bans into cache.")
+
+    except mysql.connector.Error as err:
+        print(f"DATABASE ERROR during ban list sync: {err}")
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+
 @socketio.on("connect")
 def handle_connect():
     user_ip = get_real_ip(request)
@@ -386,51 +449,6 @@ def handle_connect():
     sid = request.sid
     print(f"User connected: {nickname}")
 
-    conn = None
-    cursor = None
-    try:
-        conn = db_pool.get_connection()
-        cursor = conn.cursor(dictionary=True)   
-
-        cursor.execute(
-            "SELECT target_username, expires_at FROM BanList WHERE target_ip = %s AND target_username = %s AND is_active = TRUE", (user_ip, nickname)
-        )
-        ban_record = cursor.fetchone()
-        
-        if ban_record:
-            expires_at = ban_record['expires_at']
-            
-            # Check if the ban is active
-            if expires_at is None or expires_at > datetime.datetime.utcnow():
-                banned_username = ban_record['target_username']
-                print(f"Connection rejected for banned user '{banned_username}' at IP: {user_ip}")
-
-                expiry_str = None
-                if expires_at:
-                    expiry_str = expires_at.strftime("%Y-%m-%d %H:%M:%S UTC")
-                
-                # return False, "banned"
-                socketio.emit('display_banned', {'expires_at': expiry_str}, room=sid)
-                # redirect(url_for('banned_page', expires_at=expiry_str))
-                # disconnect(sid)
-                return
-
-            else:
-                # The ban has expired, so we can deactivate it
-                print(f"Deactivating expired ban for IP: {user_ip}")
-                cursor.execute("UPDATE BanList SET is_active = FALSE WHERE target_ip = %s", (user_ip,))
-                conn.commit()
-
-    except mysql.connector.Error as err:
-        print(f"Database error during connection check: {err}")
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-    # if nickname not in globals.connected_usernames:
-    #     socketio.emit('user_connected', nickname)
     if nickname:
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = sid
@@ -875,6 +893,9 @@ def ip_ban_users():
         cursor.executemany(sql, ban_data)
         conn.commit()
 
+        for user, ip in users_with_ips:
+            globals.banned_ips_cache[f"{user}@{ip}"] = expiry_date
+
     except mysql.connector.Error as err:
         print(f"Database error during ban: {err}")
         return jsonify({"message": "A database error occurred."}), 500
@@ -1018,6 +1039,11 @@ with app.app_context():
     check_chatlog_status()
     run_scheduled_task()
     initialize_ai_history_from_log()
+
+    sync_ban_list_from_db()
+    ban_sync_thread = Thread(target=run_periodic_ban_sync)
+    ban_sync_thread.daemon = True
+    ban_sync_thread.start()
 
 
 if __name__ == '__main__':

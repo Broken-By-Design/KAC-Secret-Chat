@@ -16,3 +16,5 @@ users_with_IP = {}
 users_to_jumpscare = set()
 
 kicked_users = set()
+
+banned_ips_cache = {}

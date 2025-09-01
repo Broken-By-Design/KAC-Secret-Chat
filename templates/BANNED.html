@@ -23,6 +23,7 @@
             border-radius: 0.5rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
             text-align: center;
+            max-width: 500px;
         }
 
         .title {
@@ -36,31 +37,33 @@
             font-size: 1.25rem;
             margin-bottom: 1.5rem;
         }
+
+        .expiry-info {
+            font-size: 1.1rem;
+            background: #222;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            margin-top: 1.5rem;
+            border-left: 3px solid #cc0000;
+        }
+
+        .expiry-info strong {
+            color: #ff9999;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1 class="title">Access Denied</h1>
-        <p class="subtitle">You have been banned from this chatroom.</p>
-        <p id="message"></p>
+        <p class="subtitle">Your IP address has been banned from the chatroom.</p>
+        <div class="expiry-info">
+            {% if expiry == "Permanent" %}
+                <p>This is a <strong>permanent</strong> ban.</p>
+            {% else %}
+                <p>Your ban will be lifted on:<br><strong>{{ expiry }}</strong></p>
+            {% endif %}
+        </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const messageEl = document.getElementById('message');
-            const expiry = "{{ expiry }}";
-
-            if (expiry && expiry.toUpperCase() !== 'NONE' && expiry.toUpperCase() !== 'NULL') {
-                const date = new Date(expiry + ' UTC');
-                if (!isNaN(date.getTime())) {
-                    messageEl.textContent = `Your ban will be lifted on ${date.toLocaleString()} UTC.`;
-                } else {
-                    messageEl.textContent = 'This is a permanent ban.';
-                }
-            } else {
-                messageEl.textContent = 'This is a permanent ban.';
-            }
-        });
-    </script>
 </body>
 </html>
