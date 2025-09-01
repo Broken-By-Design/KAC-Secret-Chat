@@ -18,10 +18,10 @@ var ChatApp = window.ChatApp || {};
      * A helper function that takes a data buffer and sends it in chunks over the socket.
      * This is used by compressAndSendImage and is not needed by any other module.
      */
-    function chunkAndEmit(buffer, id, nickname, timestamp, question = null) {
+    function chunkAndEmit(buffer, id, timestamp, question = null) {
         // const totalSize = buffer.byteLength;
         const chunkSize = 256 * 1024; // 256 KB
-        const metadata = { nickname, timestamp, name: id, question: question };
+        const metadata = { timestamp, name: id, question: question };
         let offset = 0;
 
         while (offset < buffer.byteLength) {
@@ -45,7 +45,7 @@ var ChatApp = window.ChatApp || {};
      */
     async function compressAndSendImage(
         file,
-        nickname,
+        //nickname,
         timestamp,
         question = null
     ) {
@@ -55,7 +55,7 @@ var ChatApp = window.ChatApp || {};
             return chunkAndEmit(
                 buffer,
                 file.name,
-                nickname,
+                //nickname,
                 timestamp,
                 question
             );
@@ -144,8 +144,8 @@ var ChatApp = window.ChatApp || {};
             alert(
                 "You have been kicked by an administrator. You will now be logged out."
             );
-            document.cookie =
-                "acceptance_cookie=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            // document.cookie =
+            //     "acceptance_cookie=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             window.location.reload();
         });
 

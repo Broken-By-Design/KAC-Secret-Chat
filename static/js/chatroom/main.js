@@ -139,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function () {
         e.preventDefault();
         if (typing) {
             socket.emit("stop_typing", {
-                nickname: utils.getCookie("nickname"),
+                // nickname: utils.getCookie("nickname"),
             });
             typing = false;
         }
@@ -147,7 +147,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (ui.readyJumpscare === true) {
             ui.triggerJumpscare();
             ui.readyJumpscare = false;
-            socket.emit("user_jumpscared", { nickname: utils.getCookie("nickname"), });
+            socket.emit("user_jumpscared", {});
         }
 
         //* Handle client side slash commands...
@@ -174,7 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // console.log(contents)
             socket.emit("chat_message", {
                 message: contents,
-                nickname: utils.getCookie("nickname"),
+                // nickname: utils.getCookie("nickname"),
                 timestamp: new Date().toISOString(),
             });
             ui.input.value = "";
@@ -185,7 +185,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ui.input.addEventListener("input", () => {
         if (!typing) {
             typing = true;
-            socket.emit("typing", { nickname: utils.getCookie("nickname") });
+            socket.emit("typing", {});
         }
         lastTypingTime = Date.now();
 
@@ -193,7 +193,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const timeDiff = Date.now() - lastTypingTime;
             if (typing && timeDiff >= TYPING_TIMER_LENGTH) {
                 socket.emit("stop_typing", {
-                    nickname: utils.getCookie("nickname"),
+                    // nickname: utils.getCookie("nickname"),
                 });
                 typing = false;
             }
@@ -203,7 +203,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ui.input.addEventListener("blur", () => {
         if (typing) {
             socket.emit("stop_typing", {
-                nickname: utils.getCookie("nickname"),
+                //nickname: utils.getCookie("nickname"),
             });
             typing = false;
         }
@@ -237,7 +237,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Tell the socket module to handle the compression and sending
         ChatApp.socket.compressAndSendImage(
             file,
-            utils.getCookie("nickname"),
+            // utils.getCookie("nickname"),
             new Date().toISOString(),
             question
         );

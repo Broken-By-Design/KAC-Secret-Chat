@@ -58,6 +58,34 @@ app.config['ADMIN_SECRET_KEY'] = os.getenv("ADMIN_SECRET_KEY", None)
 
 app.config['GEMINI_API_KEY'] = os.getenv("GEMINI_API_KEY", None)
 
+@app.after_request
+def clear_old_insecure_cookies(response):
+    old_cookies = ['acceptance_cookie', 'nickname', 'admin_acceptance_cookie']
+    for cookie_name in old_cookies:
+        if cookie_name in request.cookies:
+            response.delete_cookie(cookie_name)
+            print(f"Instructed browser to delete old cookie: {cookie_name}")
+    return response
+
+@app.before_request
+def check_if_kicked():
+    """
+    If a user's nickname is in the kicked_users set, clear their
+    session to log them out, and then remove them from the set
+    so they can log back in again.
+    """
+    nickname = session.get('nickname')
+    if nickname and nickname in globals.kicked_users:
+        globals.kicked_users.remove(nickname)
+        
+        session.pop('logged_in', None)
+        session.pop('acceptance_token', None)
+        
+        print(f"Enforced kick for user {nickname}. Their session has been cleared.")
+        
+        return redirect(url_for('index'))
+
+
 db_config = {
     'host': os.getenv('DB_HOST'),
     'port': int(os.getenv('DB_PORT', 3306)),
@@ -227,7 +255,7 @@ def initialize_ai_history_from_log(num_messages=20):
                 #     ))
 
 
-def generate_response(message: str, user: str, enable_google_search: bool = True, image = False, image_id = None, request_cookies = None):
+def generate_response(message: str, user: str, enable_google_search: bool = True, image = False, image_id = None):
     global ai_client
     # global globals.ai_prompt_history
 
@@ -246,7 +274,7 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
             raise ValueError("request_cookies(dict) required when image=True")
         if image_id:
             image_path = f"http://0.0.0.0:5000/get_image/{image_id}"
-            image_bytes = requests.get(image_path, cookies=request_cookies).content
+            image_bytes = requests.get(image_path).content
 
             mime_type = magic.from_buffer(image_bytes, mime=True)
 
@@ -354,7 +382,7 @@ def get_real_ip(request_obj):
 @socketio.on("connect")
 def handle_connect():
     user_ip = get_real_ip(request)
-    nickname = request.args.get('nickname')
+    nickname = session.get('nickname')
     sid = request.sid
     print(f"User connected: {nickname}")
 
@@ -417,29 +445,31 @@ def handle_connect():
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    nickname = request.cookies.get('nickname')
-    print(f"User disconnected: {nickname}")
+    nickname_to_remove = None
+    for nickname, sid in globals.users_with_sid.items():
+        if sid == request.sid:
+            nickname_to_remove = nickname
+            break
 
-    if nickname:
-        if nickname in globals.typing_users:
-            globals.typing_users.remove(nickname)
+    if nickname_to_remove:
+        print(f"User disconnected: {nickname_to_remove}")
+
+        if nickname_to_remove in globals.typing_users:
+            globals.typing_users.remove(nickname_to_remove)
             socketio.emit('typing_update', {'users': list(globals.typing_users)})
             
-        if nickname in globals.connected_usernames:
-            globals.connected_usernames.remove(nickname)
+        if nickname_to_remove in globals.connected_usernames:
+            globals.connected_usernames.remove(nickname_to_remove)
 
-        if nickname in globals.users_with_sid:
-            globals.users_with_sid.pop(nickname)
-        
-        if nickname in globals.users_with_IP:
-            globals.users_with_IP.pop(nickname)
+        globals.users_with_sid.pop(nickname_to_remove, None)
+        globals.users_with_IP.pop(nickname_to_remove, None)
         
     
     # socketio.emit('user_disconnected', nickname)
 
 @socketio.on("user_jumpscared")
 def remove_from_jumpscare_list(data):
-    nickname = data.get('nickname')
+    nickname = session.get('nickname')
     if nickname in globals.users_to_jumpscare:
         globals.users_to_jumpscare.remove(nickname)
 
@@ -447,7 +477,7 @@ def remove_from_jumpscare_list(data):
 def handle_chat_message(data):
     print(globals.ai_prompt_history)
     message = data.get('message')
-    nickname = data.get('nickname')
+    nickname = session.get('nickname')
     timestamp = data.get('timestamp')
     print("Message received:", message, "from", nickname)
 
@@ -500,18 +530,20 @@ def handle_chat_message(data):
 
 @socketio.on('image_chunk')
 def handle_image_chunk(data):
-    # Quickly stash the chunk and return
+    if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
+        disconnect()
+        return
+
     temp_id = data['id']
     chunk = data['chunk']
     _image_buffers[temp_id].append(chunk)
 
     if data['is_last']:
-        acceptance_cookie = request.cookies.get('acceptance_cookie')
         socketio.start_background_task(
-            assemble_and_emit_image, temp_id, data['metadata'], acceptance_cookie
+            assemble_and_emit_image, temp_id, data['metadata']
         )
 
-def assemble_and_emit_image(temp_id, metadata, acceptance_cookie):
+def assemble_and_emit_image(temp_id, metadata):
     # join all the chunks
     full_bytes = b''.join(_image_buffers.pop(temp_id, []))
 
@@ -548,7 +580,7 @@ def assemble_and_emit_image(temp_id, metadata, acceptance_cookie):
     if metadata["question"]:
         socketio.emit('chat_message', { 'message': "!bot "+metadata["question"], 'nickname': metadata['nickname'], 'timestamp': metadata['timestamp'] })
         add_chatlog_entry("!bot "+metadata["question"], metadata['nickname'], metadata['timestamp'], globals.current_log_file, type="text")
-        response = generate_response(metadata["question"], user=metadata['nickname'], image=True, image_id=final_id, request_cookies={'acceptance_cookie': acceptance_cookie})
+        response = generate_response(metadata["question"], user=metadata['nickname'], image=True, image_id=final_id)
         socketio.emit('chat_message', { 'message': response, 'nickname': "KAC-Bot", 'timestamp': datetime.datetime.now().isoformat() })
         add_chatlog_entry(response, "KAC-Bot", datetime.datetime.now().isoformat(), globals.current_log_file)
     else:
@@ -607,7 +639,7 @@ def assemble_and_emit_image(temp_id, metadata, acceptance_cookie):
 
 @socketio.on('typing')
 def handle_typing(data):
-    nickname = data.get('nickname')
+    nickname = session.get('nickname')
     if nickname:
         globals.typing_users.add(nickname)
         # Broadcast updated list
@@ -615,19 +647,16 @@ def handle_typing(data):
 
 @socketio.on('stop_typing')
 def handle_stop_typing(data):
-    nickname = data.get('nickname')
+    nickname = session.get('nickname')
     if nickname and nickname in globals.typing_users:
         globals.typing_users.remove(nickname)
         socketio.emit('typing_update', {'users': list(globals.typing_users)})
 
 @app.route('/')
 def index():
-    acceptance_cookie = request.cookies.get('acceptance_cookie')
-    nickname_cookie = request.cookies.get('nickname')
-    if (
-        (acceptance_cookie) and (acceptance_cookie == app.config['CHAT_SECRET_KEY']) and
-        (nickname_cookie)
-        ):
+    # acceptance_cookie = request.cookies.get('acceptance_cookie')
+    # nickname_cookie = request.cookies.get('nickname')
+    if session.get('logged_in') and session.get('acceptance_token') == app.config['CHAT_SECRET_KEY'] and session.get('nickname'):
         return render_template('chatroom.html')
     else:
         return render_template('login.html')
@@ -637,12 +666,13 @@ def index():
 def login():
     
     if request.form.get("password") == app.config['CHAT_SECRET_KEY']:
-        if request.cookies.get("nickname"):
-            response = make_response(redirect(url_for('index')))
+        session['acceptance_token'] = request.form.get("password")
+        session['logged_in'] = True
+
+        if session.get('nickname') and session.get('nickname') != None:
+            return redirect(url_for('index'))
         else:
-            response = make_response(render_template('nickname.html'))
-        response.set_cookie('acceptance_cookie', request.form.get("password"), max_age=datetime.timedelta(weeks=1))
-        return response
+            return render_template('nickname.html')
     else:
         return render_template('login.html', error="Incorrect password")
     # response = app.make_response(render_template('chatroom.html'))
@@ -651,23 +681,29 @@ def login():
 
 @app.route('/set-nickname', methods=['POST'])
 def set_nickname():
-    acceptance_cookie = request.cookies.get('acceptance_cookie')
-    if (acceptance_cookie) and (acceptance_cookie == app.config['CHAT_SECRET_KEY']):
-        if request.form.get("nickname") in globals.connected_usernames:
+    if session.get('logged_in') and session.get('acceptance_token') == app.config['CHAT_SECRET_KEY']:
+        nickname = request.form.get("nickname")
+        if nickname in globals.connected_usernames:
             return render_template('nickname.html', error="User with that name already in chat")
-        response = make_response(redirect(url_for('index')))
-        response.set_cookie('nickname', request.form.get("nickname"))
-        socketio.emit('user_connected', request.form.get("nickname"))
-        return response
+        
+        session['nickname'] = nickname
+        
+        socketio.emit('user_connected', nickname)
+        return redirect(url_for('index'))
+
+        # response = make_response(redirect(url_for('index')))
+        # response.set_cookie('nickname', request.form.get("nickname"))
+        # socketio.emit('user_connected', request.form.get("nickname"))
+        # return response
     else:
         return render_template('login.html')
 
 @app.route('/get_chatlogs', methods=['GET'])
 def get_chatlogs():
     # global globals.current_log_file
-    acceptance_cookie = request.cookies.get('acceptance_cookie')
-    if (not acceptance_cookie) or (acceptance_cookie != app.config['CHAT_SECRET_KEY']):
+    if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
             return "Unauthorized", 401
+            
     if globals.current_log_file and os.path.exists(globals.current_log_file):
         with open(globals.current_log_file, 'r') as f:
             chatlogs = json.load(f)
@@ -678,16 +714,15 @@ def get_chatlogs():
 @app.route('/get_connected_users', methods=['GET'])
 def get_connected_users():
     # global globals.connected_usernames
-    acceptance_cookie = request.cookies.get('acceptance_cookie')
-    if (not acceptance_cookie) or (acceptance_cookie != app.config['CHAT_SECRET_KEY']):
+    if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
             return "Unauthorized", 401
+
     return jsonify(get_connected_users(globals.connected_usernames))
 
 @app.route('/get_image/<path:id>', methods=['GET'])
 def get_image(id):
-    acceptance_cookie = request.cookies.get('acceptance_cookie')
-    if (not acceptance_cookie) or (acceptance_cookie != app.config['CHAT_SECRET_KEY']):
-        return "Unauthorized", 401
+    # if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
+    #     return "Unauthorized", 401
 
     # Just grab the filename without extension
     filename = os.path.splitext(id)[0]  # strips extension
@@ -709,13 +744,23 @@ def gamble():
 
 # --- ADMIN ---
 
+# def admin_required(f):
+#     """Checks for the admin cookie before allowing access to a route."""
+#     @wraps(f)
+#     def decorated_function(*args, **kwargs):
+#         admin_cookie = request.cookies.get('admin_acceptance_cookie')
+#         if not admin_cookie or admin_cookie != app.config['ADMIN_SECRET_KEY']:
+#             return jsonify({"message": "Authentication required"}), 401
+#         return f(*args, **kwargs)
+#     return decorated_function
+
 def admin_required(f):
-    """Checks for the admin cookie before allowing access to a route."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        admin_cookie = request.cookies.get('admin_acceptance_cookie')
-        if not admin_cookie or admin_cookie != app.config['ADMIN_SECRET_KEY']:
-            return jsonify({"message": "Authentication required"}), 401
+        if not session.get('is_admin'):
+            if request.path.startswith('/get-users') or request.path.startswith('/admin/'):
+                 return jsonify({"message": "Authentication required"}), 401
+            return redirect(url_for('admin_login'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -731,8 +776,7 @@ def get_ban_expiry(duration_str):
 
 @app.route('/admin', methods=['GET'])
 def admin_panel():
-    acceptance_cookie = request.cookies.get('admin_acceptance_cookie')
-    if ((acceptance_cookie) and (acceptance_cookie == app.config['ADMIN_SECRET_KEY'])):
+    if session.get('is_admin'):
         return render_template('admin/admin.html')
     else:
         return render_template('admin/admin-login.html')
@@ -740,8 +784,8 @@ def admin_panel():
 @app.route('/admin-login', methods=['POST'])
 def admin_login():
     if request.form.get("password") == app.config['ADMIN_SECRET_KEY']:
+        session['is_admin'] = True
         response = make_response(redirect(url_for('admin_panel')))
-        response.set_cookie('admin_acceptance_cookie', request.form.get("password"), max_age=datetime.timedelta(days=1))
         return response
     else:
         return render_template('admin/admin-login.html', error="Incorrect password")
@@ -751,6 +795,7 @@ def admin_login():
 @admin_required
 def get_users():
     print(get_real_ip(request))
+    print(globals.users_with_IP)
     return jsonify(globals.users_with_IP)
 
 @app.route("/admin/kick", methods=['POST'])
@@ -771,7 +816,9 @@ def kick_users():
     for user in users_to_kick:
         sid_to_kick = globals.users_with_sid.get(user)
         if sid_to_kick:
-            socketio.emit('force_logout', {}, room=sid_to_kick)
+            globals.kicked_users.add(user)
+
+            socketio.emit('force_logout', {}, room=sid_to_kick)            
             print(f"Sent force_logout command to {user} (SID: {sid_to_kick}).")
             disconnect(sid_to_kick, namespace='/')
             
@@ -843,6 +890,7 @@ def ip_ban_users():
         if user in banned_users:
             sid_to_kick = globals.users_with_sid.get(user)
             if sid_to_kick:
+                globals.kicked_users.add(user)
                 socketio.emit('force_logout', {}, room=sid_to_kick)
                 print(f"Sent force_logout command to {user} (SID: {sid_to_kick}).")
                 disconnect(sid_to_kick, namespace='/')

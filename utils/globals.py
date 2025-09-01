@@ -14,3 +14,5 @@ users_with_sid = {}
 users_with_IP = {}
 
 users_to_jumpscare = set()
+
+kicked_users = set()
