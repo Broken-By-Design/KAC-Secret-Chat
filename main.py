@@ -93,7 +93,7 @@ def check_ban_status():
     database's BanList. If so, it stops the request and shows the banned page.
     """
     # We don't need to run this check on the banned page itself, or we'll get a redirect loop.
-    if request.endpoint == 'banned_page' or request.path.startswith('/static/') or request.path.startswith('/admin'):
+    if request.endpoint == 'banned_page' or request.path.startswith('/static/') or request.path.startswith('/admin') or request.path.startswith('/get-users'):
         return
 
     user_ip = get_real_ip(request)
