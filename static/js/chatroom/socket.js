@@ -96,6 +96,7 @@ var ChatApp = window.ChatApp || {};
      */
     function initializeListeners() {
         socket.on("connect", function () {
+            ui.enableInputs();
             console.log("Connection Established");
         });
 

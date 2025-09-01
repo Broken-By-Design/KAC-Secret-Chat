@@ -31,7 +31,7 @@ from mysql.connector import pooling
 from functools import wraps
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify, send_file
+from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify, send_file, session
 from flask_socketio import SocketIO, disconnect
 
 from utils.helpers import *
@@ -383,7 +383,8 @@ def handle_connect():
                 
                 # return False, "banned"
                 socketio.emit('display_banned', {'expires_at': expiry_str}, room=sid)
-                # disconnect(sid) 
+                # redirect(url_for('banned_page', expires_at=expiry_str))
+                # disconnect(sid)
                 return
 
             else:

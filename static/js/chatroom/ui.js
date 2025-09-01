@@ -47,6 +47,11 @@ var ChatApp = window.ChatApp || {};
     jumpscareImage.src = "/jumpscare/image.png";
     var readyJumpscare = false;
 
+    document.getElementById("input").disabled = true;
+    document.getElementById("input").placeholder = "Connecting...";
+    document.querySelector('button[type="submit"]').disabled = true;
+    document.getElementById("openFile").disabled = true;
+
     // --- PRIVATE FUNCTIONS (helper functions used only by this module) ---
 
     function scrollToBottom(force = false, minHeight = 200) {
@@ -267,6 +272,13 @@ var ChatApp = window.ChatApp || {};
         scrollToBottom();
     }
 
+    function enableInputs() {
+        document.getElementById("input").disabled = false;
+        document.getElementById("input").placeholder = "Type Here";
+        document.querySelector('button[type="submit"]').disabled = false;
+        document.getElementById("openFile").disabled = false;
+    }
+
     function triggerJumpscare(
         imagePath = "/jumpscare/image.png",
         soundPath = "/jumpscare/sound.wav",
@@ -331,6 +343,7 @@ var ChatApp = window.ChatApp || {};
         addUserConnectedMessage: addUserConnectedMessage,
         addSystemMessageNoUser: addSystemMessageNoUser,
         showBannedMessage: showBannedMessage,
+        enableInputs: enableInputs,
         openImageOptions: openImageOptions,
         closeImageOptions: closeImageOptions,
         updateTypingIndicator: updateTypingIndicator,
