@@ -301,8 +301,8 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         )
 
     if image:
-        if not request_cookies:
-            raise ValueError("request_cookies(dict) required when image=True")
+        # if not request_cookies:
+        #     raise ValueError("request_cookies(dict) required when image=True")
         if image_id:
             image_path = f"http://0.0.0.0:5000/get_image/{image_id}"
             image_bytes = requests.get(image_path).content
@@ -557,6 +557,7 @@ def handle_image_chunk(data):
     _image_buffers[temp_id].append(chunk)
 
     if data['is_last']:
+        data['metadata']['nickname'] = session.get('nickname')
         socketio.start_background_task(
             assemble_and_emit_image, temp_id, data['metadata']
         )

@@ -21,7 +21,7 @@ var ChatApp = window.ChatApp || {};
     function chunkAndEmit(buffer, id, timestamp, question = null) {
         // const totalSize = buffer.byteLength;
         const chunkSize = 256 * 1024; // 256 KB
-        const metadata = { timestamp, name: id, question: question };
+        const metadata = { timestamp: timestamp, name: id, question: question };
         let offset = 0;
 
         while (offset < buffer.byteLength) {
@@ -83,11 +83,9 @@ var ChatApp = window.ChatApp || {};
             canvas.toBlob(res, mimeType, quality)
         );
 
-        // 4) Read the Blob into a buffer
         const buffer = await compressedBlob.arrayBuffer();
 
-        // 5) Chunk and send the compressed buffer
-        chunkAndEmit(buffer, file.name, nickname, timestamp, question);
+        chunkAndEmit(buffer, file.name, timestamp, question);
     }
 
     /**
