@@ -215,3 +215,11 @@ input[type="checkbox"]:checked::before {
     text-align: center; /* Center the text now that width is auto */
     flex-shrink: 0; /* Prevents the button from shrinking if the container is narrow */
 }
+
+#usersList li label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+}

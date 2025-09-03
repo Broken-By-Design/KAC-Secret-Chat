@@ -54,6 +54,8 @@ app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "P%22%3BgzPe%5Ck%5D%3BgV-%7B%
 globals.socketio = SocketIO(app, async_mode="eventlet", async_handlers=True)
 socketio = globals.socketio
 
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
+
 app.config['CHAT_SECRET_KEY'] = os.getenv("CHAT_SECRET_KEY", None)
 app.config['ADMIN_SECRET_KEY'] = os.getenv("ADMIN_SECRET_KEY", None)
 
@@ -66,6 +68,14 @@ def clear_old_insecure_cookies(response):
         if cookie_name in request.cookies:
             response.delete_cookie(cookie_name)
             print(f"Instructed browser to delete old cookie: {cookie_name}")
+    return response
+
+@app.after_request
+def set_session_permanent(response):
+    if session.permanent == True:
+        return response
+    
+    session.permanent = True
     return response
 
 @app.before_request

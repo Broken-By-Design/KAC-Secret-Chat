@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // Populate the list with users from the backend
             Object.entries(users).forEach((user) => {
                 const userItem = document.createElement("li");
-                userItem.innerHTML = `<input type="checkbox" data-username="${user[0]}" /> ${user[0]} (${user[1]})`;
+                userItem.innerHTML = `<label><input type="checkbox" data-username="${user[0]}" /> ${user[0]} (${user[1]})</label>`;
                 usersListElement.appendChild(userItem);
             });
         } catch (error) {
