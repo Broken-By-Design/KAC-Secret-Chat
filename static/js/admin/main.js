@@ -2,7 +2,7 @@
 var AdminPanel = window.AdminPanel || {};
 
 document.addEventListener("DOMContentLoaded", function () {
-    // customCloak("https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico", "Google Docs");
+    customCloak("https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico", "Google Docs");
 
     // initial run
     const iframe = document.getElementById("chatPreview");
