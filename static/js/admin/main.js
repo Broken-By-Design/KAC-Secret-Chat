@@ -2,7 +2,7 @@
 var AdminPanel = window.AdminPanel || {};
 
 document.addEventListener("DOMContentLoaded", function () {
-    customCloak("https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico", "Google Docs");
+    // customCloak("https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico", "Google Docs");
 
     // initial run
     const iframe = document.getElementById("chatPreview");
@@ -21,6 +21,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const resetChatBtn = document.getElementById("resetChatBtn");
     const reloadAllUsersBtn = document.getElementById("reloadAllUsersBtn");
     const cloakAllUsersBtn = document.getElementById("cloakAllUsersBtn");
+    const refreshBanListBtn = document.getElementById("refreshBanListBtn");
+
 
     // Troll Commands
     const jumpscareBtn = document.getElementById("jumpscareBtn");
@@ -266,6 +268,9 @@ document.addEventListener("DOMContentLoaded", function () {
     );
     cloakAllUsersBtn.addEventListener("click", () =>
         performActionNoUser("cloak-all")
+    );
+    refreshBanListBtn.addEventListener("click", () =>
+        performActionNoUser("update-bans")
     );
 
     // Initial load

@@ -1011,6 +1011,12 @@ def send_message_admin():
         #add_chatlog_entry(message, "KAC-Bot", timestamp, globals.current_log_file, type="system" if is_system else "text")
     return jsonify({"message": "Message sent to chat."}), 200
 
+@app.route("/admin/update-bans", methods=["POST"])
+@admin_required
+def update_bans():
+    sync_ban_list_from_db()
+    return jsonify({"message": "Ban list has been updated from the database."}), 200
+
 @app.route("/jumpscare/<path:filename>", methods=["GET"])
 def jumpscare_file(filename):
     jumpscare_dir = os.path.join(app.root_path, "jumpscare")
