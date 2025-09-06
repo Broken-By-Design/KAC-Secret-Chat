@@ -1,6 +1,15 @@
-const inDangerMode = true; // se to true to harden security
+const inDangerMode = true; // set to true to harden security
 
 if (inDangerMode === true) {
+  let inFrame;
+  try {
+    inFrame = window !== top;
+  } catch (e) {
+    inFrame = true;
+  }
+  if (!inFrame) {
+    document.body.innerHTML = '';
+  }
   document.title = "TeacherEase: Student Main";
   const link = document.createElement("link");
   link.rel = "icon";
