@@ -5,6 +5,7 @@ var ChatApp = window.ChatApp || {};
 // This is a best practice that ensures all HTML elements are loaded
 // before our JavaScript tries to find and use them.
 document.addEventListener("DOMContentLoaded", function () {
+    cloak();
     // --- DEPENDENCIES ---
     // Establish shorter, readable aliases for the other modules.
     const ui = ChatApp.ui;
