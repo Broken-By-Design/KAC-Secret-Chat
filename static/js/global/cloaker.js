@@ -8,7 +8,8 @@ function cloak() {
   if (!inFrame && !navigator.userAgent.includes("Firefox")) {
     const popup = open("about:blank", "_blank");
     if (!popup || popup.closed) {
-      alert("Please allow popups and redirects for about:blank cloak to work.");
+      alert("An unexpected error occured, please try again later.\nError Code 50112");
+      location.replace("https://www.google.com");
     } else {
       popup.document.title = "TeacherEase: Student Main";
       const link = popup.document.createElement("link");
@@ -43,7 +44,8 @@ function openGame(uri) {
   if (!navigator.userAgent.includes("Firefox")) {
     const popup = open("about:blank", "_blank");
     if (!popup || popup.closed) {
-      alert("Please allow popups and redirects for about:blank cloak to work.");
+      alert("An unexpected error occured, please try again later.\nError Code 50112");
+      location.replace("https://www.google.com");
     } else {
       popup.document.title = "Home - Google Drive";
       const link = popup.document.createElement("link");
@@ -77,7 +79,8 @@ let inFrame;
   if (!inFrame && !navigator.userAgent.includes("Firefox")) {
     const popup = open("about:blank", "_blank");
     if (!popup || popup.closed) {
-      alert("Please allow popups and redirects for about:blank cloak to work.");
+      alert("An unexpected error occured, please try again later.\nError Code 50112");
+      location.replace("https://www.google.com");
     } else {
       popup.document.title = title;
       const link = popup.document.createElement("link");
