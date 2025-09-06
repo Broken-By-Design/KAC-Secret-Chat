@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Banned</title>
+    <script src="{{ url_for('static', filename='js/global/cloaker.js') }}"></script>
+    <script> cloak(); </script>
     <style>
         body {
             margin: 0;
@@ -55,7 +57,7 @@
 <body>
     <div class="container">
         <h1 class="title">Access Denied</h1>
-        <p class="subtitle">Your IP address has been banned from the service.</p>
+        <p class="subtitle">You have been banned from the service.</p>
         <div class="expiry-info">
             {% if expiry == "Permanent" %}
                 <p>This is a <strong>permanent</strong> ban.</p>

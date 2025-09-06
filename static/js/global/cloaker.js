@@ -1,3 +1,13 @@
+const inDangerMode = true; // se to true to harden security
+
+if (inDangerMode === true) {
+  document.title = "TeacherEase: Student Main";
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.href = "https://www.teacherease.com/favicon.ico";
+  document.head.appendChild(link);
+}
+
 function cloak() {
   let inFrame;
   try {
@@ -8,6 +18,7 @@ function cloak() {
   if (!inFrame && !navigator.userAgent.includes("Firefox")) {
     const popup = open("about:blank", "_blank");
     if (!popup || popup.closed) {
+      document.body.innerHTML = '';
       alert("An unexpected error occured, please try again later.\nError Code 50112");
       location.replace("https://www.google.com");
     } else {
@@ -44,6 +55,7 @@ function openGame(uri) {
   if (!navigator.userAgent.includes("Firefox")) {
     const popup = open("about:blank", "_blank");
     if (!popup || popup.closed) {
+      document.body.innerHTML = '';
       alert("An unexpected error occured, please try again later.\nError Code 50112");
       location.replace("https://www.google.com");
     } else {
@@ -79,6 +91,7 @@ let inFrame;
   if (!inFrame && !navigator.userAgent.includes("Firefox")) {
     const popup = open("about:blank", "_blank");
     if (!popup || popup.closed) {
+      document.body.innerHTML = '';
       alert("An unexpected error occured, please try again later.\nError Code 50112");
       location.replace("https://www.google.com");
     } else {
