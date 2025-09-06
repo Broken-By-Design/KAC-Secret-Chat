@@ -7,9 +7,9 @@ var ChatApp = window.ChatApp || {};
     const ui = ChatApp.ui;
 
     const socket = io({
-        query: {
-            nickname: utils.getCookie("nickname"),
-        },
+        // query: {
+        //     nickname: utils.getCookie("nickname"),
+        // },
     });
 
     // --- Private Functions ---
