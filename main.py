@@ -459,6 +459,10 @@ def handle_connect():
     sid = request.sid
     print(f"User connected: {nickname}")
 
+    if session.get('logged_in') != True or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
+        disconnect()
+        return
+
     if nickname:
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = sid
