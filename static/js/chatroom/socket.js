@@ -171,6 +171,10 @@ var ChatApp = window.ChatApp || {};
         socket.on("display_banned", function (data) {
             ui.showBannedMessage(data.expires_at);
         });
+
+        socket.on("add_pinned_msg", function (data) {
+            ui.addPinnedMessage(data.message, data.nickname);
+        });
     }
 
     // --- PUBLIC INTERFACE ---

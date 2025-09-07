@@ -1021,6 +1021,18 @@ def update_bans():
     sync_ban_list_from_db()
     return jsonify({"message": "Ban list has been updated from the database."}), 200
 
+@app.route("/admin/pinned-message", methods=["POST"])
+@admin_required
+def add_pinned_message():
+    data = request.get_json()
+    if not data or 'message' not in data:
+        return jsonify({"message": "Invalid request. 'message' key is missing."}), 400
+
+    message = data['message']
+    nickname = session.get('nickname', 'Admin')
+    socketio.emit('add_pinned_msg', { 'message': message, 'nickname': nickname })
+    return jsonify({"message": "Pinned message updated."}), 200
+
 @app.route("/jumpscare/<path:filename>", methods=["GET"])
 def jumpscare_file(filename):
     jumpscare_dir = os.path.join(app.root_path, "jumpscare")

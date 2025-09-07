@@ -290,3 +290,33 @@ label {
     pointer-events: none;
     background-color: black; /* Optional: fills empty space */
 }
+
+/* Pinned message */
+
+#pinned-message {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #1a1a1a;
+    border-bottom: 2px solid #cc0000;
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+    color: whitesmoke;
+}
+
+#pinned-message button {
+    background: none;
+    border: none;
+    color: whitesmoke;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+#pinned-message button:hover {
+    color: #cc0000;
+}

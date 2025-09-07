@@ -250,26 +250,38 @@ var ChatApp = window.ChatApp || {};
             location.replace("/banned");
         }
         return;
+    }
 
-        // Clear the chat window
-        messages.innerHTML = "";
-
-        const item = document.createElement("li");
-
-        // Create a more user-friendly message
-        if (expires_at) {
-            item.innerHTML = `You have been <b style="color: red;">banned</b> from the chat. Your ban will expire on ${expires_at}.`;
-        } else {
-            item.innerHTML = `You have been <b style="color: red;">permanently banned</b> from the chat.`;
+    function addPinnedMessage(message, nickname) {
+        // Remove any existing pinned message first
+        const existingPinnedMessage = document.getElementById("pinned-message");
+        if (existingPinnedMessage) {
+            existingPinnedMessage.remove();
         }
 
-        messages.appendChild(item);
-        document.getElementById("input").disabled = true;
-        document.getElementById("input").placeholder =
-            "You have been disconnected.";
-        document.querySelector('button[type="submit"]').disabled = true;
-        document.getElementById("openFile").disabled = true;
-        scrollToBottom();
+        const formattedMessage = utils.linkify(
+            marked.parseInline(HtmlSanitizer.SanitizeHtml(message))
+        );
+
+        const pinnedMessageContainer = document.createElement("div");
+        pinnedMessageContainer.id = "pinned-message";
+
+        const messageContent = document.createElement("span");
+        messageContent.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${formattedMessage}`;
+        pinnedMessageContainer.appendChild(messageContent);
+
+        const closeButton = document.createElement("button");
+        closeButton.innerHTML = "&times;"; // A simple "x"
+        closeButton.onclick = () => {
+            pinnedMessageContainer.remove();
+            document.body.style.paddingTop = "0";
+        };
+        pinnedMessageContainer.appendChild(closeButton);
+
+        document.body.insertBefore(pinnedMessageContainer, document.body.firstChild);
+        
+        // Add padding to the body to prevent the pinned message from overlapping the chat content
+        document.body.style.paddingTop = `${pinnedMessageContainer.offsetHeight}px`;
     }
 
     function enableInputs() {
@@ -342,6 +354,7 @@ var ChatApp = window.ChatApp || {};
         addImageMessage: addImageMessage,
         addUserConnectedMessage: addUserConnectedMessage,
         addSystemMessageNoUser: addSystemMessageNoUser,
+        addPinnedMessage: addPinnedMessage,
         showBannedMessage: showBannedMessage,
         enableInputs: enableInputs,
         openImageOptions: openImageOptions,

@@ -29,8 +29,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const crashBtn = document.getElementById("crashBtn");
 
     // Message-based ones
+    const pinnedMessageForm = document.getElementById("pinnedMessageForm");
     const systemMessageForm = document.getElementById("systemMessageForm");
     const userMessageForm = document.getElementById("userMessageForm");
+
+    const pinnedMessageInput = document.getElementById("pinnedMessageInput");
 
     const systemMessageInput = document.getElementById("systemMessageInput");
     const userMessageNameInput = document.getElementById(
@@ -39,6 +42,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const userMessageContentsInput = document.getElementById(
         "userMessageContentsInput"
     );
+
 
     let selectedUsers = [];
 
@@ -212,6 +216,20 @@ document.addEventListener("DOMContentLoaded", function () {
             message: message,
             username: username,
         });
+    });
+
+    pinnedMessageForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const message = pinnedMessageInput.value;
+
+        if (!message.trim()) {
+            showMessage(failMessage, "Pinned message cannot be empty.");
+            return;
+        }
+
+        performActionNoUser("pinned-message", { message: message });
+
     });
 
     // Event Listeners

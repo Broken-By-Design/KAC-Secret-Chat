@@ -54,6 +54,7 @@
             </div>
             <div class="section_container">
                 <h1>Messages</h1>
+
                 <!-- System Message Form -->
                 <form id="systemMessageForm">
                     <div class="input-group">
@@ -62,11 +63,19 @@
                     </div>
                 </form>
 
+                <form id="pinnedMessageForm">
+                    <div class="input-group">
+                        <input type="text" id="pinnedMessageInput" placeholder="Set a pinned message">
+                        <button type="submit">Set</button>
+                    </div>
+                </form>
+
                 <h1 style="margin-top: 2rem;">Send a message as a user</h1>
                 <!-- User Message Form -->
                 <form id="userMessageForm">
                     <div class="input-group">
                         <input type="text" id="userMessageNameInput" placeholder="Username for message">
+                        
                         <input type="text" id="userMessageContentsInput" placeholder="Message">
                         <button type="submit">Send</button>
                     </div>
