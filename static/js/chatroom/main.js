@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const socket = ChatApp.socket.instance; // Note: we get the 'instance' property
     const utils = ChatApp.utils;
 
-    const testingMode = true;
+    const testingMode = false;
 
     // --- PRIVATE STATE (for this file only) ---
     let typing = false;
