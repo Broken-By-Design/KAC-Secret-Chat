@@ -12,6 +12,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const socket = ChatApp.socket.instance; // Note: we get the 'instance' property
     const utils = ChatApp.utils;
 
+    const testingMode = true;
+
     // --- PRIVATE STATE (for this file only) ---
     let typing = false;
     let lastTypingTime = 0;
@@ -19,9 +21,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let emoji = new EmojiConvertor();
     // emoji.text_mode = true;
-    emoji.replace_mode = 'unified';
+    emoji.replace_mode = "unified";
     emoji.allow_native = true;
-
 
     // --- INITIALIZATION ---
 
@@ -48,16 +49,35 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 if (entry.type === "image") {
                     const item = document.createElement("li");
-
                     const anchor = document.createElement("a");
-                    anchor.href = `/get_image/${entry.id}`;
-                    anchor.target = "_blank";
-                    anchor.rel = "noopener noreferrer";
-
                     const img = document.createElement("img");
+
+
+                    const imageUri = `/get_image/${entry.id}`;
+                    anchor.href = imageUri;
+
+                    if (inDangerMode === true && testingMode === true) {
+                        // In Danger Mode, we want to cloak the URL on click.
+                        anchor.addEventListener("click", function (event) {
+                            // Prevent the browser from following the link normally.
+                            event.preventDefault();
+
+                            // Call the cloakURL function with the image's URL.
+                            if (typeof cloakURL === "function") {
+                                cloakURL(imageUri);
+                            } else {
+                                console.error("Error: cloakURL() is not defined.");
+                            }
+                        });
+                    } else {
+                        // In normal mode, the link should open in a new, uncloaked tab.
+                        anchor.target = "_blank";
+                        anchor.rel = "noopener noreferrer";
+                    }
+
                     // img.loading = "lazy";
                     img.id = entry.id;
-                    img.src = `/get_image/${entry.id}`;
+                    img.src = imageUri;
 
                     const imageLoad = new Promise((resolve) => {
                         // img.onload = resolve;

@@ -686,6 +686,13 @@ def handle_stop_typing(data):
         socketio.emit('typing_update', {'users': list(globals.typing_users)})
 
 @app.route('/')
+def root_redirect():
+    if session.get('logged_in') and session.get('acceptance_token') == app.config['CHAT_SECRET_KEY'] and session.get('nickname'):
+        return redirect(url_for('index'))
+    
+    return render_template('decoy.html')
+
+@app.route('/student-portal')
 def index():
     # acceptance_cookie = request.cookies.get('acceptance_cookie')
     # nickname_cookie = request.cookies.get('nickname')
