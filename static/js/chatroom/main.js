@@ -173,9 +173,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         //* Handle client side slash commands...
 
-        if (ui.input.value === "/cloak") {
+        if (ui.input.value.startsWith("/cloak ")) {
             ui.input.value = "";
-            cloak();
+            url = ui.input.value.replace("/cloak ", "").trim();
+            cloakURL(url);
             return;
         }
         if (ui.input.value === "/refresh" || ui.input.value === "/reload") {
@@ -183,7 +184,7 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
         if (ui.input.value === "/gamble") {
-            openGame("game-gamble-d6eca0");
+            openURI("game-gamble-d6eca0");
             ui.input.value = "";
             return;
         }

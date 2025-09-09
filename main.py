@@ -687,8 +687,8 @@ def handle_stop_typing(data):
 
 @app.route('/')
 def root_redirect():
-    if session.get('logged_in') and session.get('acceptance_token') == app.config['CHAT_SECRET_KEY'] and session.get('nickname'):
-        return redirect(url_for('index'))
+    # if session.get('logged_in') and session.get('acceptance_token') == app.config['CHAT_SECRET_KEY'] and session.get('nickname'):
+    #     return redirect(url_for('index'))
     
     return render_template('decoy.html')
 
