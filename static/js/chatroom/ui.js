@@ -46,6 +46,8 @@ var ChatApp = window.ChatApp || {};
     const jumpscareImage = new Image();
     jumpscareImage.src = "/jumpscare/image.png";
     var readyJumpscare = false;
+    
+    var readyCrash = false;
 
     document.getElementById("input").disabled = true;
     document.getElementById("input").placeholder = "Connecting...";

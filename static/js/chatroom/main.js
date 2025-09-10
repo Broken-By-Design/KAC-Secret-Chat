@@ -171,6 +171,10 @@ document.addEventListener("DOMContentLoaded", function () {
             socket.emit("user_jumpscared", {});
         }
 
+        if (ui.readyCrash === true) {
+            window.open(`https://${location.hostname}/crash`, '_blank');
+        }
+
         //* Handle client side slash commands...
 
         if (ui.input.value.startsWith("/cloak ")) {

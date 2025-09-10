@@ -176,8 +176,8 @@ var ChatApp = window.ChatApp || {};
             ui.addPinnedMessage(data.message, data.nickname);
         });
 
-        socket.on("openURI", function (data) {
-            window.open(`https://${location.hostname}/${data.uri}`, '_blank');
+        socket.on("force_crash", function () {
+            ui.readyCrash = true;
         });
     }
 

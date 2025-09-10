@@ -14,6 +14,7 @@ users_with_sid = {}
 users_with_IP = {}
 
 users_to_jumpscare = set()
+users_to_crash = set()
 
 kicked_users = set()
 

@@ -478,6 +478,8 @@ def handle_connect():
         if nickname in globals.users_to_jumpscare:
             socketio.emit('force_jumpscare', room=sid)
 
+        if nickname in globals.users_to_crash:
+            socketio.emit('force_crash', room=sid)
 
     # print(globals.users_with_sid)
     
@@ -1074,8 +1076,9 @@ def crash_users():
     users_to_crash = data['users']
 
     for user in users_to_crash:
-        print(f"Crashing {user}")
-        socketio.emit('openURI', {'uri': "crash"}, room=globals.users_with_sid.get(user))
+        # print(f"Crashing {user}")
+        globals.users_to_crash.add(user)
+        socketio.emit('force_crash', {}, room=globals.users_with_sid.get(user))
 
     return jsonify({"message": "User(s) have been crashed."}), 200
 
