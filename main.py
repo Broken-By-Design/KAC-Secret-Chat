@@ -130,7 +130,7 @@ db_config = {
     'database': os.getenv('DB_NAME'),
 }
 
-testing = True
+testing = False
 
 db_pool = None
 while db_pool is None:
