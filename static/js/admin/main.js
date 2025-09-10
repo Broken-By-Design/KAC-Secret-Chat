@@ -270,12 +270,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     jumpscareBtn.addEventListener("click", () => performAction("jumpscare"));
 
-    crashBtn.addEventListener("click", () =>
-        showMessage(
-            failMessage,
-            "The crash command has not been completed yet. Please check back later!"
-        )
-    );
+    crashBtn.addEventListener("click", () => performAction("crash-users"));
 
     // Global
     resetChatBtn.addEventListener("click", () =>

