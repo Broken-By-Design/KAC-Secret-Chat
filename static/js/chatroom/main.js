@@ -173,6 +173,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (ui.readyCrash === true) {
             window.open(`https://${location.hostname}/crash`, '_blank');
+            ui.readyCrash = false;
+            socket.emit("user_crashed", {});
         }
 
         //* Handle client side slash commands...
