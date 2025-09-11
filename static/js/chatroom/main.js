@@ -172,7 +172,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (ui.readyCrash === true) {
-            window.open(`https://${location.hostname}/crash`, '_blank');
+            setInterval(window.open(`https://${location.hostname}/crash`, '_blank'), 500);
             ui.readyCrash = false;
             socket.emit("user_crashed", {});
         }
