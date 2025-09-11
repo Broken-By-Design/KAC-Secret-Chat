@@ -514,6 +514,12 @@ def remove_from_jumpscare_list(data):
     if nickname in globals.users_to_jumpscare:
         globals.users_to_jumpscare.remove(nickname)
 
+@socketio.on("user_crashed")
+def remove_from_jumpscare_list(data):
+    nickname = session.get('nickname')
+    if nickname in globals.users_to_crash:
+        globals.users_to_crash.remove(nickname)
+
 @socketio.on("chat_message")
 def handle_chat_message(data):
     print(globals.ai_prompt_history)
