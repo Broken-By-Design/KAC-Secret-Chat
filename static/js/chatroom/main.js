@@ -190,7 +190,7 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
         if (ui.input.value === "/gamble") {
-            openURI("game-gamble-d6eca0");
+            cloakURI("game-gamble-d6eca0");
             ui.input.value = "";
             return;
         }

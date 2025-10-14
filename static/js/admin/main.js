@@ -2,7 +2,10 @@
 var AdminPanel = window.AdminPanel || {};
 
 document.addEventListener("DOMContentLoaded", function () {
-    customCloak("https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico", "Google Docs");
+    customCloak(
+        "https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico",
+        "Google Docs"
+    );
 
     // initial run
     const iframe = document.getElementById("chatPreview");
@@ -22,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const reloadAllUsersBtn = document.getElementById("reloadAllUsersBtn");
     const cloakAllUsersBtn = document.getElementById("cloakAllUsersBtn");
     const refreshBanListBtn = document.getElementById("refreshBanListBtn");
-
+    const resetBotHistoryBtn = document.getElementById("resetBotHistoryBtn");
 
     // Troll Commands
     const jumpscareBtn = document.getElementById("jumpscareBtn");
@@ -42,7 +45,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const userMessageContentsInput = document.getElementById(
         "userMessageContentsInput"
     );
-
 
     let selectedUsers = [];
 
@@ -229,7 +231,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         performActionNoUser("pinned-message", { message: message });
-
     });
 
     // Event Listeners
@@ -285,6 +286,13 @@ document.addEventListener("DOMContentLoaded", function () {
     refreshBanListBtn.addEventListener("click", () =>
         performActionNoUser("update-bans")
     );
+
+    resetBotHistoryBtn.addEventListener("click", () => {
+        performActionNoUser("system-message", {
+            message: "*KAC-Bot's* history has been **reset** by and Admin!",
+        });
+        performActionNoUser("reset-bot-memory");
+    });
 
     // Initial load
     fetchAndRenderUsers();

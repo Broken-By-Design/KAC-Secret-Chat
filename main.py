@@ -261,7 +261,7 @@ def load_recent_chat_context_dict(num_messages=10):
 #             for log in recent_logs
 #         ]
 
-def initialize_ai_history_from_log(num_messages=20):
+def initialize_ai_history_from_log(num_messages=100):
     # global globals.ai_prompt_history
 
     if not globals.ai_prompt_history:
@@ -1046,6 +1046,20 @@ def send_message_admin():
 def update_bans():
     sync_ban_list_from_db()
     return jsonify({"message": "Ban list has been updated from the database."}), 200
+
+@app.route("/admin/reset-bot-memory", methods=["POST"])
+@admin_required
+def reset_bot_memory():
+    """
+    Resets the AI's conversation memory.
+    """
+    try:
+        globals.ai_prompt_history = []
+        print("In-memory AI prompt history has been cleared.")
+        return jsonify({"message": "Bot's memory has been successfully reset."}), 200
+    except Exception as e:
+        print(f"An error occurred while resetting the bot's memory: {e}")
+        return jsonify({"message": "An error occurred during the bot's memory reset."}), 500
 
 @app.route("/admin/pinned-message", methods=["POST"])
 @admin_required

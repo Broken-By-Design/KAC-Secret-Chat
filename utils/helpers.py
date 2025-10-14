@@ -42,7 +42,7 @@ def add_chatlog_entry(message, nickname, timestamp, current_log_file, type: str 
 
 def add_to_prompt_history_safe(role: str, text: str, image_part: bytes = None, type: str = "text"):
     if type == "text":
-        if len(globals.ai_prompt_history) <= 20:
+        if len(globals.ai_prompt_history) <= 100:
             globals.ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
         else:
             globals.ai_prompt_history.pop(0)
@@ -50,7 +50,7 @@ def add_to_prompt_history_safe(role: str, text: str, image_part: bytes = None, t
     elif type == "image":
         if not image_part:
             raise ValueError("image_part required when type='image'")
-        if len(globals.ai_prompt_history) <= 20:
+        if len(globals.ai_prompt_history) <= 100:
             globals.ai_prompt_history.append(types.Content(role=role, parts=[types.Part.from_text(text=text), image_part]))
         else:
             globals.ai_prompt_history.pop(0)
