@@ -2,3 +2,7 @@
 chatlogs/*
 .venv/
 **__pycache__/
+
+
+# backups
+*.bak
