@@ -79,8 +79,6 @@ var ChatApp = window.ChatApp || {};
 
         if (youtubeMatch && youtubeMatch[1]) {
             const videoId = youtubeMatch[1];
-            `<iframe class="YYcd7 UVPiae" id="ZsW5Ub" src="https://www.youtube.com/embed/i6G53BMgugo?enablejsapi=1&amp;rel=0&amp;control=1&amp;showinfo=0&amp;start=0&amp;autoplay=0&amp;cc_load_policy=0&amp;errorlinks=0&amp;hl=en&amp;authuser=0&amp;modestbranding=1&amp;rct=CpcBAXH1ezmMW5MVoD2nV0_gXqidTpQwi2JQSwBBtRZ4lC2E0U-RBYJ5lH5BhTJO1EYdR7MIZJZ37GBYCBOXEy30B34tEZd-zt-b1TMvpRxGCqMk5Sr5_53QWthaGyxOlmpbkqVZYKaEtNJ65jkqQbkOCpm6raKmwQ31L0zbF-fokoupcTt53qRP4FtlultlOgxvjhNIwW2qvA%3D%3D&amp;embed_config=%7B%22hideInfoBar%22%3Afalse%2C%22disableRelatedVideos%22%3Atrue%2C%22enc%22%3A%22AXH1ezlevUtXOX3k5lUZi0StrySD472kZGMQLcy-E1EE0F08Cjylk5fH6m3PUCRus8ypBCWuwykchIaaPUtylxz3zoVIkzRY7ppI9sCKjLsyYWNH_XWKM63VC5XkGa_XiztHoNKih7MLc3jk6kGaUcQxPYXkCUbMYG8voa3nhNMK97pd%22%7D" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen="" title="Stevie Ray Vaughan - Little Wing (07/11/1983)"></iframe>`
-            // `<iframe width="1125" height="849" src="https://www.youtube.com/embed/LYIVD5PummA" title="The Vaughan Brothers - In the Studio" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
             return `${message}<br><iframe width="35%" height="360" src="https://www.youtube.com/embed/${videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
         }
 
