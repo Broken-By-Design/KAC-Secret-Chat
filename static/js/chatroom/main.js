@@ -29,7 +29,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // 1. Set up the socket event listeners (for receiving messages, etc.)
     ChatApp.socket.initializeListeners();
 
-    // 2. Fetch the initial chat logs from the server
     fetch("/get_chatlogs", { credentials: "include" })
         .then((res) => res.json())
         .then((data) => {
@@ -52,7 +51,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     const anchor = document.createElement("a");
                     const img = document.createElement("img");
 
-
                     const imageUri = `/get_image/${entry.id}`;
                     anchor.href = imageUri;
 
@@ -66,7 +64,9 @@ document.addEventListener("DOMContentLoaded", function () {
                             if (typeof cloakURL === "function") {
                                 cloakURL(imageUri);
                             } else {
-                                console.error("Error: cloakURL() is not defined.");
+                                console.error(
+                                    "Error: cloakURL() is not defined."
+                                );
                             }
                         });
                     } else {
@@ -172,7 +172,11 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (ui.readyCrash === true) {
-            window.open(`https://${location.hostname}/crash`, '_blank', 'popup=true,width=1,height=1,scrollbar=no,resizable=yes')
+            window.open(
+                `https://${location.hostname}/crash`,
+                "_blank",
+                "popup=true,width=1,height=1,scrollbar=no,resizable=yes"
+            );
             ui.readyCrash = false;
             socket.emit("user_crashed", {});
         }
