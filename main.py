@@ -522,7 +522,7 @@ def remove_from_jumpscare_list(data):
 
 @socketio.on("chat_message")
 def handle_chat_message(data):
-    print(globals.ai_prompt_history)
+    # print(globals.ai_prompt_history)
     message = data.get('message')
     nickname = session.get('nickname')
     timestamp = data.get('timestamp')

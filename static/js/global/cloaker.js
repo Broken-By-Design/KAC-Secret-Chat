@@ -1,4 +1,4 @@
-const inDangerMode = true; // set to true to harden security
+const inDangerMode = true; //true; // set to true to harden security
 
 if (inDangerMode === true) {
     let inFrame;
@@ -8,7 +8,8 @@ if (inDangerMode === true) {
         inFrame = true;
     }
     if (!inFrame) {
-        document.body.innerHTML = "";
+        // document.body.innerHTML = "";
+        cloak()
     }
     document.title = "TeacherEase: Student Main";
     const link = document.createElement("link");

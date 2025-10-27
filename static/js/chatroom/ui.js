@@ -46,7 +46,7 @@ var ChatApp = window.ChatApp || {};
     const jumpscareImage = new Image();
     jumpscareImage.src = "/jumpscare/image.png";
     var readyJumpscare = false;
-    
+
     var readyCrash = false;
 
     document.getElementById("input").disabled = true;
@@ -71,6 +71,33 @@ var ChatApp = window.ChatApp || {};
 
     // --- PUBLIC FUNCTIONS (will be exposed via ChatApp.ui) ---
 
+    function createEmbed(message) {
+        // YouTube video URL regex (handles various formats)
+        const youtubeRegex =
+            /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+        const youtubeMatch = message.match(youtubeRegex);
+
+        if (youtubeMatch && youtubeMatch[1]) {
+            const videoId = youtubeMatch[1];
+            `<iframe class="YYcd7 UVPiae" id="ZsW5Ub" src="https://www.youtube.com/embed/i6G53BMgugo?enablejsapi=1&amp;rel=0&amp;control=1&amp;showinfo=0&amp;start=0&amp;autoplay=0&amp;cc_load_policy=0&amp;errorlinks=0&amp;hl=en&amp;authuser=0&amp;modestbranding=1&amp;rct=CpcBAXH1ezmMW5MVoD2nV0_gXqidTpQwi2JQSwBBtRZ4lC2E0U-RBYJ5lH5BhTJO1EYdR7MIZJZ37GBYCBOXEy30B34tEZd-zt-b1TMvpRxGCqMk5Sr5_53QWthaGyxOlmpbkqVZYKaEtNJ65jkqQbkOCpm6raKmwQ31L0zbF-fokoupcTt53qRP4FtlultlOgxvjhNIwW2qvA%3D%3D&amp;embed_config=%7B%22hideInfoBar%22%3Afalse%2C%22disableRelatedVideos%22%3Atrue%2C%22enc%22%3A%22AXH1ezlevUtXOX3k5lUZi0StrySD472kZGMQLcy-E1EE0F08Cjylk5fH6m3PUCRus8ypBCWuwykchIaaPUtylxz3zoVIkzRY7ppI9sCKjLsyYWNH_XWKM63VC5XkGa_XiztHoNKih7MLc3jk6kGaUcQxPYXkCUbMYG8voa3nhNMK97pd%22%7D" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen="" title="Stevie Ray Vaughan - Little Wing (07/11/1983)"></iframe>`
+            // `<iframe width="1125" height="849" src="https://www.youtube.com/embed/LYIVD5PummA" title="The Vaughan Brothers - In the Studio" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
+            return `<iframe width="35%" height="360" src="https://www.youtube.com/embed/${videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        }
+
+        // Spotify track URL regex
+        const spotifyRegex =
+            /(?:https?:\/\/)?open\.spotify\.com\/track\/([a-zA-Z0-9]+)/;
+        const spotifyMatch = message.match(spotifyRegex);
+
+        if (spotifyMatch && spotifyMatch[1]) {
+            const trackId = spotifyMatch[1];
+            return `<iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/${trackId}?utm_source=generator" width="50%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;
+        }
+
+        // If no match, return the original message (sanitized)
+        return message;
+    }
+
     function addMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
 
@@ -78,11 +105,12 @@ var ChatApp = window.ChatApp || {};
         const formattedMessage = utils.linkify(
             marked.parseInline(HtmlSanitizer.SanitizeHtml(message))
         );
+
         const item = document.createElement("li");
 
         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
             nickname
-        )}:</b> ${formattedMessage} <span id="timestamp">${utils.formatTime(
+        )}:</b> ${createEmbed(formattedMessage)} <span id="timestamp">${utils.formatTime(
             timestamp
         )}</span>`;
         messages.appendChild(item);
@@ -95,7 +123,7 @@ var ChatApp = window.ChatApp || {};
     function addHighlightedMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
 
-        const formattedMessage = utils.linkify(
+        const formattedMessage = createEmbed(
             marked.parseInline(HtmlSanitizer.SanitizeHtml(message))
         );
         const item = document.createElement("li");
@@ -269,7 +297,9 @@ var ChatApp = window.ChatApp || {};
         pinnedMessageContainer.id = "pinned-message";
 
         const messageContent = document.createElement("span");
-        messageContent.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(nickname)}:</b> ${formattedMessage}`;
+        messageContent.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
+            nickname
+        )}:</b> ${formattedMessage}`;
         pinnedMessageContainer.appendChild(messageContent);
 
         const closeButton = document.createElement("button");
@@ -280,8 +310,11 @@ var ChatApp = window.ChatApp || {};
         };
         pinnedMessageContainer.appendChild(closeButton);
 
-        document.body.insertBefore(pinnedMessageContainer, document.body.firstChild);
-        
+        document.body.insertBefore(
+            pinnedMessageContainer,
+            document.body.firstChild
+        );
+
         // Add padding to the body to prevent the pinned message from overlapping the chat content
         document.body.style.paddingTop = `${pinnedMessageContainer.offsetHeight}px`;
     }
