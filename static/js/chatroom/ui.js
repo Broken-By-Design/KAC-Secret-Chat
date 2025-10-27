@@ -72,24 +72,37 @@ var ChatApp = window.ChatApp || {};
     // --- PUBLIC FUNCTIONS (will be exposed via ChatApp.ui) ---
 
     function createEmbed(message) {
-        // YouTube video URL regex (handles various formats)
-        const youtubeRegex =
-            /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-        const youtubeMatch = message.match(youtubeRegex);
+        // const spotifyRegex =
+        //     /(?:https?:\/\/)?open\.spotify\.com\/track\/([a-zA-Z0-9]+)/;
+        // const spotifyMatch = message.match(spotifyRegex);
 
-        if (youtubeMatch && youtubeMatch[1]) {
-            const videoId = youtubeMatch[1];
-            return `${message}<br><iframe width="35%" height="360" src="https://www.youtube.com/embed/${videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-        }
-
-        // Spotify track URL regex
+        // if (spotifyMatch && spotifyMatch[1]) {
+        //     const trackId = spotifyMatch[1];
+        //     return `${message}<br><iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/${trackId}?utm_source=generator" width="50%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;
+        // }
         const spotifyRegex =
-            /(?:https?:\/\/)?open\.spotify\.com\/track\/([a-zA-Z0-9]+)/;
+            /(<a href=")?(https?:\/\/open\.spotify\.com\/(track|album|playlist|artist|show|episode)\/([a-zA-Z0-9]+))[^"]*(">[^<]+<\/a>)?/i;
         const spotifyMatch = message.match(spotifyRegex);
 
-        if (spotifyMatch && spotifyMatch[1]) {
-            const trackId = spotifyMatch[1];
-            return `${message}<br><iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/${trackId}?utm_source=generator" width="50%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;
+        if (spotifyMatch && spotifyMatch[2]) {
+            const type = spotifyMatch[3]; // e.g., "track", "album"
+            const id = spotifyMatch[4]; // The Spotify ID
+            let height = 352; // Default height for albums, playlists
+
+            // Adjust height based on content type for a better fit
+            switch (type) {
+                case "track":
+                    height = 152; // Compact player for single tracks
+                    break;
+                case "show":
+                case "episode":
+                    height = 232; // Standard height for podcasts
+                    break;
+            }
+
+            const embedIframe = `${message}<br><iframe style="border-radius:12px" src="https://open.spotify.com/embed/${type}/${id}?utm_source=generator" width="50%" height="${height}" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+            // Replace the original link with the iframe
+            return embedIframe;
         }
 
         // If no match, return the original message (sanitized)
@@ -108,9 +121,9 @@ var ChatApp = window.ChatApp || {};
 
         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
             nickname
-        )}:</b> ${createEmbed(formattedMessage)} <span id="timestamp">${utils.formatTime(
-            timestamp
-        )}</span>`;
+        )}:</b> ${createEmbed(
+            formattedMessage
+        )} <span id="timestamp">${utils.formatTime(timestamp)}</span>`;
         messages.appendChild(item);
 
         const elementHeight = item.offsetHeight;
