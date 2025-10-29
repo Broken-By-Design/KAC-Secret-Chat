@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // initial run
     const iframe = document.getElementById("chatPreview");
-    iframe.src = `https://${location.hostname}`;
+    iframe.src = `https://${location.hostname}/student-portal`;
 
     const usersListElement = document.querySelector("#usersList ul");
     const selectedUsersTitle = document.querySelector(".section_container h1");
