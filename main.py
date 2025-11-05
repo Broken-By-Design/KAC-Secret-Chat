@@ -707,6 +707,10 @@ def root_redirect():
     
     return render_template('decoy.html')
 
+@app.route('/tests')
+def testing_pages():
+    return render_template('tests/tests.html')
+
 @app.route('/student-portal')
 def index():
     # acceptance_cookie = request.cookies.get('acceptance_cookie')

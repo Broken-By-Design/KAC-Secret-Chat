@@ -9,7 +9,14 @@ if (inDangerMode === true) {
     }
     if (!inFrame) {
         // document.body.innerHTML = "";
-        cloak()
+        if (location.href.includes("admin")) {
+            customCloak(
+                "https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico",
+                "Google Docs"
+            );
+        }
+        
+        cloak();
     }
     document.title = "TeacherEase: Student Main";
     const link = document.createElement("link");
@@ -191,9 +198,9 @@ function cloakURL(url) {
             iframe.style.margin = "0";
             iframe.style.border = iframe.style.outline = "none";
             if (url.startsWith("http://") || url.startsWith("https://")) {
-              iframe.src = url;
+                iframe.src = url;
             } else {
-              iframe.src = `https://${url}`;
+                iframe.src = `https://${url}`;
             }
             popup.document.body.appendChild(iframe);
         }
