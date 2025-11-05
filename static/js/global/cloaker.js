@@ -14,9 +14,9 @@ if (inDangerMode === true) {
                 "https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico",
                 "Google Docs"
             );
+        } else {
+            cloak();
         }
-        
-        cloak();
     }
     document.title = "TeacherEase: Student Main";
     const link = document.createElement("link");
