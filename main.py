@@ -489,6 +489,16 @@ def handle_connect():
 @socketio.on("disconnect")
 def handle_disconnect():
     nickname_to_remove = None
+
+    sid = request.sid
+
+    if sid in video_chat_users:
+        nickname = video_chat_users[sid]
+        print(f"VIDEO LOUNGE: {nickname} ({sid}) left.")
+        del video_chat_users[sid]
+        # Notify all other clients that this user has left
+        socketio.emit('user_left_lounge', sid)
+
     for nickname, sid in globals.users_with_sid.items():
         if sid == request.sid:
             nickname_to_remove = nickname
@@ -506,12 +516,6 @@ def handle_disconnect():
 
         globals.users_with_sid.pop(nickname_to_remove, None)
         globals.users_with_IP.pop(nickname_to_remove, None)
-        
-    
-    if sid in video_chat_users:
-        del video_chat_users[sid]
-        socketio.emit('user_left_lounge', sid)
-        print(f"VIDEO LOUNGE: User {sid} left.")
 
     
     # socketio.emit('user_disconnected', nickname)
@@ -661,9 +665,22 @@ def handle_stop_typing(data):
 def handle_join_video_lounge():
     sid = request.sid
     nickname = session.get('nickname', 'Anonymous')
-    
-    # Tell the new user about everyone who is already there
-    # We send a list of dictionaries with sid and nickname
+
+    old_sid = None
+    for s, n in video_chat_users.items():
+        if n == nickname:
+            old_sid = s
+            break
+            
+    if old_sid:
+        print(f"VIDEO LOUNGE: Detected refresh for {nickname}. Cleaning up old SID: {old_sid}")
+        # Remove the old entry
+        del video_chat_users[old_sid]
+        # Tell everyone else to remove the old video element
+        socketio.emit('user_left_lounge', old_sid)
+    # --- END FIX ---
+
+    # Tell the new user about everyone who is currently in the room
     users_in_lounge = [{'sid': user_sid, 'nickname': user_nick} for user_sid, user_nick in video_chat_users.items()]
     socketio.emit('all_users', users_in_lounge, room=sid)
     
