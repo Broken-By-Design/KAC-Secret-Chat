@@ -61,6 +61,8 @@ app.config['ADMIN_SECRET_KEY'] = os.getenv("ADMIN_SECRET_KEY", None)
 
 app.config['GEMINI_API_KEY'] = os.getenv("GEMINI_API_KEY", None)
 
+video_chat_users = globals.video_chat_users
+
 @app.after_request
 def clear_old_insecure_cookies(response):
     old_cookies = ['acceptance_cookie', 'nickname', 'admin_acceptance_cookie']
@@ -506,6 +508,12 @@ def handle_disconnect():
         globals.users_with_IP.pop(nickname_to_remove, None)
         
     
+    if sid in video_chat_users:
+        del video_chat_users[sid]
+        socketio.emit('user_left_lounge', sid)
+        print(f"VIDEO LOUNGE: User {sid} left.")
+
+    
     # socketio.emit('user_disconnected', nickname)
 
 @socketio.on("user_jumpscared")
@@ -634,57 +642,6 @@ def assemble_and_emit_image(temp_id, metadata):
     else:
         add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent an image.")
 
-
-# @socketio.on('image_chunk')
-# def handle_image_chunk(data):
-#     temp_id = data['id']
-#     chunk = data['chunk']  # this arrives as bytes
-#     metadata = data['metadata']
-#     is_last = data['is_last']
-#     # print("recieved image chunk from: ", temp_id)
-#     _image_buffers[temp_id].append(chunk)
-
-#     if not is_last:
-#         return
-
-#     if is_last:
-#         full_bytes = b''.join(_image_buffers.pop(temp_id))
-#         # proceed to dedupe/hash/save like your existing handle_image
-#         image_hash = hashlib.sha256(full_bytes).hexdigest()
-#         image_hash = hashlib.sha256(full_bytes).hexdigest()
-#         images_dir = './chatlogs/images/'
-#         os.makedirs(images_dir, exist_ok=True)
-
-#         existing_id = None
-#         for fn in os.listdir(images_dir):
-#             path = os.path.join(images_dir, fn)
-#             if not os.path.isfile(path):
-#                 continue
-#             with open(path, 'rb') as f:
-#                 if hashlib.sha256(f.read()).hexdigest() == image_hash:
-#                     existing_id = os.path.splitext(fn)[0]
-#                     break
-
-#         if existing_id:
-#             final_id = existing_id
-#         else:
-#             final_id = generate_random_string()
-#             name = metadata.get('name', '')
-#             _, ext = os.path.splitext(name)
-#             ext = ext.lower()
-#             out_path = os.path.join(images_dir, f"{final_id}{ext}")
-#             with open(out_path, 'wb') as f:
-#                 f.write(full_bytes)
-
-
-#         socketio.emit('add_image', {
-#           'id': final_id,
-#           'nickname': metadata['nickname'],
-#           'timestamp': metadata['timestamp']
-#         })
-
-#         add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], type="image")
-
 @socketio.on('typing')
 def handle_typing(data):
     nickname = session.get('nickname')
@@ -700,6 +657,54 @@ def handle_stop_typing(data):
         globals.typing_users.remove(nickname)
         socketio.emit('typing_update', {'users': list(globals.typing_users)})
 
+@socketio.on('join_video_lounge')
+def handle_join_video_lounge():
+    sid = request.sid
+    nickname = session.get('nickname', 'Anonymous')
+    
+    # Tell the new user about everyone who is already there
+    # We send a list of dictionaries with sid and nickname
+    users_in_lounge = [{'sid': user_sid, 'nickname': user_nick} for user_sid, user_nick in video_chat_users.items()]
+    socketio.emit('all_users', users_in_lounge, room=sid)
+    
+    # Add the new user to our list
+    video_chat_users[sid] = nickname
+    
+    # Announce the new user to everyone else
+    socketio.emit('user_joined_lounge', {'sid': sid, 'nickname': nickname}, skip_sid=sid)
+    print(f"VIDEO LOUNGE: {nickname} ({sid}) joined.")
+
+# --- WebRTC Signaling Passthrough Events ---
+
+@socketio.on('webrtc_offer')
+def handle_webrtc_offer(data):
+    target_sid = data['targetSid']
+    offer = data['offer']
+    socketio.emit('webrtc_offer', {
+        'offer': offer,
+        'senderSid': request.sid,
+        'senderNickname': video_chat_users.get(request.sid, 'Anonymous')
+    }, room=target_sid)
+
+@socketio.on('webrtc_answer')
+def handle_webrtc_answer(data):
+    target_sid = data['targetSid']
+    answer = data['answer']
+    socketio.emit('webrtc_answer', {
+        'answer': answer,
+        'senderSid': request.sid,
+        'senderNickname': video_chat_users.get(request.sid, 'Anonymous')
+    }, room=target_sid)
+
+@socketio.on('webrtc_candidate')
+def handle_webrtc_candidate(data):
+    target_sid = data['targetSid']
+    candidate = data['candidate']
+    socketio.emit('webrtc_candidate', {
+        'candidate': candidate,
+        'senderSid': request.sid
+    }, room=target_sid)
+
 @app.route('/')
 def root_redirect():
     # if session.get('logged_in') and session.get('acceptance_token') == app.config['CHAT_SECRET_KEY'] and session.get('nickname'):
@@ -710,6 +715,14 @@ def root_redirect():
 @app.route('/tests')
 def testing_pages():
     return render_template('tests/tests.html')
+
+@app.route('/tutors')
+def video_lounge():
+    if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
+        return redirect(url_for('index'))
+    
+    nickname = session.get('nickname', 'Guest')
+    return render_template('video_chat.html', nickname=nickname)
 
 @app.route('/student-portal')
 def index():

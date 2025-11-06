@@ -1,6 +1,9 @@
 const inDangerMode = true; //true; // set to true to harden security
 
-if (inDangerMode === true) {
+if (
+    inDangerMode === true &&
+    !(location.href.includes("0.0.0.0") || location.href.includes("localhost"))
+) {
     let inFrame;
     try {
         inFrame = window !== top;

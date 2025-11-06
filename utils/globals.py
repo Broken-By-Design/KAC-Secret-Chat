@@ -19,3 +19,5 @@ users_to_crash = set()
 kicked_users = set()
 
 banned_ips_cache = {}
+
+video_chat_users = {}
