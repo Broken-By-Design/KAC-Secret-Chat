@@ -199,6 +199,12 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
+        if (ui.input.value === "/video") {
+            cloakURI("tutors");
+            ui.input.value = "";
+            return;
+        }
+
         // Send the chat message
         if (ui.input.value) {
             var contents = ui.input.value;
