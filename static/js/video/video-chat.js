@@ -137,6 +137,19 @@ document.addEventListener("DOMContentLoaded", () => {
             ?.getTracks()
             .forEach((track) => pc.addTrack(track, localStream));
 
+        const numVideos = Object.keys(peerConnections).length + 1;
+        const newEncoding = getBestEncoding(numVideos);
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) {
+            const parameters = sender.getParameters();
+            if (!parameters.encodings) {
+                parameters.encodings = [{}];
+            }
+            parameters.encodings[0].maxBitrate = newEncoding.maxBitrate;
+            parameters.encodings[0].scaleResolutionDownBy = newEncoding.scaleResolutionDownBy;
+            sender.setParameters(parameters);
+        }
+
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 socket.emit("webrtc_candidate", {
@@ -191,6 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
         remoteNameTag.innerText = nickname;
         remoteVideoWrapper.append(remoteVideo, remoteNameTag);
         videoGrid.append(remoteVideoWrapper);
+        updateAllPeerConnections();
     }
 
     function cleanupPeer(sid) {
@@ -200,6 +214,76 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const videoElement = document.getElementById(`video-${sid}`);
         if (videoElement) videoElement.remove();
+        updateAllPeerConnections();
+    }
+
+    function updateVideoGrid() {
+        const numVideos = videoGrid.children.length;
+        const videos = Array.from(videoGrid.children);
+
+        // Reset any inline grid styles
+        videoGrid.style.gridTemplateColumns = "";
+        videoGrid.style.gridTemplateRows = "";
+        videos.forEach(v => {
+            v.style.gridColumn = "";
+            v.style.gridRow = "";
+        });
+
+        if (numVideos === 0) return;
+
+        if (numVideos === 1) {
+            videoGrid.style.gridTemplateColumns = "1fr";
+            videoGrid.style.gridTemplateRows = "1fr";
+        } else if (numVideos === 2) {
+            videoGrid.style.gridTemplateColumns = "1fr 1fr";
+            videoGrid.style.gridTemplateRows = "1fr";
+        } else if (numVideos === 3) {
+            videoGrid.style.gridTemplateColumns = "1fr 1fr";
+            videoGrid.style.gridTemplateRows = "1fr 1fr";
+            videos[0].style.gridColumn = "1 / 2";
+            videos[1].style.gridColumn = "2 / 3";
+            videos[2].style.gridColumn = "1 / 3";
+            videos[2].style.gridRow = "2 / 3";
+        } else if (numVideos === 4) {
+            videoGrid.style.gridTemplateColumns = "1fr 1fr";
+            videoGrid.style.gridTemplateRows = "1fr 1fr";
+        } else if (numVideos > 4) {
+            const cols = Math.ceil(Math.sqrt(numVideos));
+            const rows = Math.ceil(numVideos / cols);
+            videoGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        }
+    }
+
+    function getBestEncoding(numVideos) {
+        // Adjusts video encoding parameters based on the number of participants
+        if (numVideos <= 2) {
+            return { maxBitrate: 1500 * 1024, scaleResolutionDownBy: 1.0 }; // High quality
+        } else if (numVideos <= 4) {
+            return { maxBitrate: 1000 * 1024, scaleResolutionDownBy: 1.5 }; // Medium quality
+        } else {
+            return { maxBitrate: 500 * 1024, scaleResolutionDownBy: 2.0 }; // Lower quality
+        }
+    }
+
+    function updateAllPeerConnections() {
+        const numVideos = Object.keys(peerConnections).length + 1; // +1 for local video
+        const newEncoding = getBestEncoding(numVideos);
+
+        for (const sid in peerConnections) {
+            const pc = peerConnections[sid].pc;
+            if (pc) {
+                const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+                if (sender) {
+                    const parameters = sender.getParameters();
+                    if (!parameters.encodings) {
+                        parameters.encodings = [{}];
+                    }
+                    parameters.encodings[0].maxBitrate = newEncoding.maxBitrate;
+                    parameters.encodings[0].scaleResolutionDownBy = newEncoding.scaleResolutionDownBy;
+                    sender.setParameters(parameters);
+                }
+            }
+        }
     }
 
     // --- UI Controls & Final Cleanup ---
@@ -225,5 +309,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener("beforeunload", () => {
         socket.disconnect();
+    });
+
+    const observer = new MutationObserver(() => {
+        updateVideoGrid();
+    });
+
+    observer.observe(videoGrid, {
+        childList: true,
     });
 });
