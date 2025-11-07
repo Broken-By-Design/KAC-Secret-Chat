@@ -139,14 +139,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const numVideos = Object.keys(peerConnections).length + 1;
         const newEncoding = getBestEncoding(numVideos);
-        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
         if (sender) {
             const parameters = sender.getParameters();
             if (!parameters.encodings) {
                 parameters.encodings = [{}];
             }
             parameters.encodings[0].maxBitrate = newEncoding.maxBitrate;
-            parameters.encodings[0].scaleResolutionDownBy = newEncoding.scaleResolutionDownBy;
+            parameters.encodings[0].scaleResolutionDownBy =
+                newEncoding.scaleResolutionDownBy;
             sender.setParameters(parameters);
         }
 
@@ -224,7 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Reset any inline grid styles
         videoGrid.style.gridTemplateColumns = "";
         videoGrid.style.gridTemplateRows = "";
-        videos.forEach(v => {
+        videos.forEach((v) => {
             v.style.gridColumn = "";
             v.style.gridRow = "";
         });
@@ -265,6 +266,55 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    async function startScreenSharing() {
+        try {
+            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+
+            // Replace the video track in all peer connections
+            for (const sid in peerConnections) {
+                const pc = peerConnections[sid].pc;
+                const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+                if (sender) {
+                    sender.replaceTrack(screenStream.getVideoTracks()[0]);
+                }
+            }
+
+            // Update the local video element to show the screen share
+            myVideo.srcObject = screenStream;
+
+            // Change the button text to "Stop Sharing"
+            document.getElementById("toggle-screen").textContent = "Stop Sharing";
+
+            // When the user stops sharing from the browser's UI
+            screenStream.getVideoTracks()[0].onended = () => {
+                stopScreenSharing();
+            };
+        } catch (error) {
+            console.error("Error starting screen sharing:", error);
+        }
+    }
+
+    function stopScreenSharing() {
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Replace the screen share track with the local video track in all peer connections
+        for (const sid in peerConnections) {
+            const pc = peerConnections[sid].pc;
+            const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+            if (sender) {
+                sender.replaceTrack(localStream.getVideoTracks()[0]);
+            }
+        }
+
+        // Update the local video element to show the camera feed
+        myVideo.srcObject = localStream;
+
+        // Change the button text back to "Share Screen"
+        document.getElementById("toggle-screen").textContent = "Share Screen";
+    }
+
     function updateAllPeerConnections() {
         const numVideos = Object.keys(peerConnections).length + 1; // +1 for local video
         const newEncoding = getBestEncoding(numVideos);
@@ -272,14 +322,17 @@ document.addEventListener("DOMContentLoaded", () => {
         for (const sid in peerConnections) {
             const pc = peerConnections[sid].pc;
             if (pc) {
-                const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+                const sender = pc
+                    .getSenders()
+                    .find((s) => s.track?.kind === "video"); // s being []RTCRtpSender
                 if (sender) {
                     const parameters = sender.getParameters();
                     if (!parameters.encodings) {
                         parameters.encodings = [{}];
                     }
                     parameters.encodings[0].maxBitrate = newEncoding.maxBitrate;
-                    parameters.encodings[0].scaleResolutionDownBy = newEncoding.scaleResolutionDownBy;
+                    parameters.encodings[0].scaleResolutionDownBy =
+                        newEncoding.scaleResolutionDownBy;
                     sender.setParameters(parameters);
                 }
             }
@@ -297,13 +350,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    document.getElementById("toggle-cam").addEventListener("click", (event) => {
-        const videoTrack = localStream?.getVideoTracks()[0];
-        if (videoTrack) {
-            videoTrack.enabled = !videoTrack.enabled;
-            event.target.textContent = videoTrack.enabled
-                ? "Turn Off Cam"
-                : "Turn On Cam";
+    //     } 
+    // });
+
+    let screenStream;
+    document.getElementById("toggle-screen").addEventListener("click", (event) => {
+        if (screenStream && screenStream.active) {
+            // Stop screen sharing
+            stopScreenSharing();
+        } else {
+            // Start screen sharing
+            startScreenSharing();
         }
     });
 
