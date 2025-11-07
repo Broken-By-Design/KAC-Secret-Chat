@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     videoGrid.append(myVideoWrapper);
 
     let localStream;
+    let screenStream;
     let peerConnections = {}; // Stores { pc, candidates: [] }
 
     const servers = {
@@ -205,7 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
         remoteNameTag.innerText = nickname;
         remoteVideoWrapper.append(remoteVideo, remoteNameTag);
         videoGrid.append(remoteVideoWrapper);
-        updateAllPeerConnections();
+        updateVideoGrid();
     }
 
     function cleanupPeer(sid) {
@@ -215,22 +216,26 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const videoElement = document.getElementById(`video-${sid}`);
         if (videoElement) videoElement.remove();
-        updateAllPeerConnections();
+        updateVideoGrid();
     }
+
+    //     }
+    // }
 
     function updateVideoGrid() {
         const numVideos = videoGrid.children.length;
         const videos = Array.from(videoGrid.children);
 
         // Reset any inline grid styles
+        videoGrid.style.display = "grid";
         videoGrid.style.gridTemplateColumns = "";
         videoGrid.style.gridTemplateRows = "";
-        videos.forEach((v) => {
+        videos.forEach(v => {
             v.style.gridColumn = "";
             v.style.gridRow = "";
+            v.style.maxWidth = "";
+            v.style.margin = "";
         });
-
-        if (numVideos === 0) return;
 
         if (numVideos === 1) {
             videoGrid.style.gridTemplateColumns = "1fr";
@@ -248,12 +253,35 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (numVideos === 4) {
             videoGrid.style.gridTemplateColumns = "1fr 1fr";
             videoGrid.style.gridTemplateRows = "1fr 1fr";
-        } else if (numVideos > 4) {
+        } else if (numVideos === 5) {
+            videoGrid.style.gridTemplateColumns = "1fr 1fr";
+            videoGrid.style.gridTemplateRows = "1fr 1fr 0.5fr";
+            videos[4].style.gridColumn = "1 / 3";
+            videos[4].style.gridRow = "3 / 4";
+            videos[4].style.maxWidth = "50%";
+            videos[4].style.margin = "0 auto";
+        } else if (numVideos === 6) {
+            videoGrid.style.gridTemplateColumns = "1fr 1fr 1fr";
+            videoGrid.style.gridTemplateRows = "1fr 1fr";
+        } else {
             const cols = Math.ceil(Math.sqrt(numVideos));
             const rows = Math.ceil(numVideos / cols);
             videoGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            videoGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
         }
     }
+
+    // --- UI Controls & Final Cleanup ---
+    document.getElementById("toggle-mic").addEventListener("click", (event) => {
+        const audioTrack = localStream?.getAudioTracks()[0];
+        if (audioTrack) {
+            audioTrack.enabled = !audioTrack.enabled;
+            event.target.textContent = audioTrack.enabled
+                ? "Mute Mic"
+                : "Unmute Mic";
+        }
+        }
+    });
 
     function getBestEncoding(numVideos) {
         // Adjusts video encoding parameters based on the number of participants
@@ -269,24 +297,21 @@ document.addEventListener("DOMContentLoaded", () => {
     async function startScreenSharing() {
         try {
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const screenTrack = screenStream.getVideoTracks()[0];
 
-            // Replace the video track in all peer connections
             for (const sid in peerConnections) {
                 const pc = peerConnections[sid].pc;
                 const sender = pc.getSenders().find(s => s.track?.kind === 'video');
                 if (sender) {
-                    sender.replaceTrack(screenStream.getVideoTracks()[0]);
+                    sender.replaceTrack(screenTrack);
                 }
             }
 
-            // Update the local video element to show the screen share
             myVideo.srcObject = screenStream;
 
-            // Change the button text to "Stop Sharing"
             document.getElementById("toggle-screen").textContent = "Stop Sharing";
 
-            // When the user stops sharing from the browser's UI
-            screenStream.getVideoTracks()[0].onended = () => {
+            screenTrack.onended = () => {
                 stopScreenSharing();
             };
         } catch (error) {
@@ -297,63 +322,38 @@ document.addEventListener("DOMContentLoaded", () => {
     function stopScreenSharing() {
         if (screenStream) {
             screenStream.getTracks().forEach(track => track.stop());
+            screenStream = null;
         }
 
-        // Replace the screen share track with the local video track in all peer connections
+        const localVideoTrack = localStream.getVideoTracks()[0];
+
         for (const sid in peerConnections) {
             const pc = peerConnections[sid].pc;
             const sender = pc.getSenders().find(s => s.track?.kind === 'video');
             if (sender) {
-                sender.replaceTrack(localStream.getVideoTracks()[0]);
+                sender.replaceTrack(localVideoTrack);
             }
         }
 
-        // Update the local video element to show the camera feed
-        myVideo.srcObject = localStream;
+        myVideo.srcObject = new MediaStream([localStream.getVideoTracks()[0]]);
 
-        // Change the button text back to "Share Screen"
         document.getElementById("toggle-screen").textContent = "Share Screen";
     }
 
-    function updateAllPeerConnections() {
-        const numVideos = Object.keys(peerConnections).length + 1; // +1 for local video
-        const newEncoding = getBestEncoding(numVideos);
-
-        for (const sid in peerConnections) {
-            const pc = peerConnections[sid].pc;
-            if (pc) {
-                const sender = pc
-                    .getSenders()
-                    .find((s) => s.track?.kind === "video"); // s being []RTCRtpSender
-                if (sender) {
-                    const parameters = sender.getParameters();
-                    if (!parameters.encodings) {
-                        parameters.encodings = [{}];
-                    }
-                    parameters.encodings[0].maxBitrate = newEncoding.maxBitrate;
-                    parameters.encodings[0].scaleResolutionDownBy =
-                        newEncoding.scaleResolutionDownBy;
-                    sender.setParameters(parameters);
-                }
+    document.getElementById("toggle-cam").addEventListener("click", (event) => {
+        if (screenStream && screenStream.active) {
+            stopScreenSharing();
+        } else {
+            const videoTrack = localStream?.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                event.target.textContent = videoTrack.enabled
+                    ? "Turn Off Cam"
+                    : "Turn On Cam";
             }
-        }
-    }
-
-    // --- UI Controls & Final Cleanup ---
-    document.getElementById("toggle-mic").addEventListener("click", (event) => {
-        const audioTrack = localStream?.getAudioTracks()[0];
-        if (audioTrack) {
-            audioTrack.enabled = !audioTrack.enabled;
-            event.target.textContent = audioTrack.enabled
-                ? "Mute Mic"
-                : "Unmute Mic";
         }
     });
 
-    //     } 
-    // });
-
-    let screenStream;
     document.getElementById("toggle-screen").addEventListener("click", (event) => {
         if (screenStream && screenStream.active) {
             // Stop screen sharing
@@ -368,11 +368,5 @@ document.addEventListener("DOMContentLoaded", () => {
         socket.disconnect();
     });
 
-    const observer = new MutationObserver(() => {
-        updateVideoGrid();
-    });
 
-    observer.observe(videoGrid, {
-        childList: true,
-    });
 });
