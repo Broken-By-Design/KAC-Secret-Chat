@@ -230,7 +230,7 @@ document.addEventListener("DOMContentLoaded", () => {
         videoGrid.style.display = "grid";
         videoGrid.style.gridTemplateColumns = "";
         videoGrid.style.gridTemplateRows = "";
-        videos.forEach(v => {
+        videos.forEach((v) => {
             v.style.gridColumn = "";
             v.style.gridRow = "";
             v.style.maxWidth = "";
@@ -280,7 +280,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 ? "Mute Mic"
                 : "Unmute Mic";
         }
-        }
     });
 
     function getBestEncoding(numVideos) {
@@ -296,12 +295,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function startScreenSharing() {
         try {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+            });
             const screenTrack = screenStream.getVideoTracks()[0];
 
             for (const sid in peerConnections) {
                 const pc = peerConnections[sid].pc;
-                const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+                const sender = pc
+                    .getSenders()
+                    .find((s) => s.track?.kind === "video");
                 if (sender) {
                     sender.replaceTrack(screenTrack);
                 }
@@ -309,7 +312,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             myVideo.srcObject = screenStream;
 
-            document.getElementById("toggle-screen").textContent = "Stop Sharing";
+            document.getElementById("toggle-screen").textContent =
+                "Stop Sharing";
 
             screenTrack.onended = () => {
                 stopScreenSharing();
@@ -321,7 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function stopScreenSharing() {
         if (screenStream) {
-            screenStream.getTracks().forEach(track => track.stop());
+            screenStream.getTracks().forEach((track) => track.stop());
             screenStream = null;
         }
 
@@ -329,7 +333,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         for (const sid in peerConnections) {
             const pc = peerConnections[sid].pc;
-            const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+            const sender = pc
+                .getSenders()
+                .find((s) => s.track?.kind === "video");
             if (sender) {
                 sender.replaceTrack(localVideoTrack);
             }
@@ -354,19 +360,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    document.getElementById("toggle-screen").addEventListener("click", (event) => {
-        if (screenStream && screenStream.active) {
-            // Stop screen sharing
-            stopScreenSharing();
-        } else {
-            // Start screen sharing
-            startScreenSharing();
-        }
-    });
+    document
+        .getElementById("toggle-screen")
+        .addEventListener("click", (event) => {
+            if (screenStream && screenStream.active) {
+                // Stop screen sharing
+                stopScreenSharing();
+            } else {
+                // Start screen sharing
+                startScreenSharing();
+            }
+        });
 
     window.addEventListener("beforeunload", () => {
         socket.disconnect();
     });
-
-
 });
