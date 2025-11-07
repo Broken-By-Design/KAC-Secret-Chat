@@ -230,11 +230,9 @@ document.addEventListener("DOMContentLoaded", () => {
         videoGrid.style.display = "grid";
         videoGrid.style.gridTemplateColumns = "";
         videoGrid.style.gridTemplateRows = "";
-        videos.forEach((v) => {
+        videos.forEach(v => {
             v.style.gridColumn = "";
             v.style.gridRow = "";
-            v.style.maxWidth = "";
-            v.style.margin = "";
         });
 
         if (numVideos === 1) {
@@ -249,17 +247,18 @@ document.addEventListener("DOMContentLoaded", () => {
             videos[0].style.gridColumn = "1 / 2";
             videos[1].style.gridColumn = "2 / 3";
             videos[2].style.gridColumn = "1 / 3";
-            videos[2].style.gridRow = "2 / 3";
+            videos[2].style.gridRow = "2 / 2";
         } else if (numVideos === 4) {
             videoGrid.style.gridTemplateColumns = "1fr 1fr";
             videoGrid.style.gridTemplateRows = "1fr 1fr";
         } else if (numVideos === 5) {
-            videoGrid.style.gridTemplateColumns = "1fr 1fr";
-            videoGrid.style.gridTemplateRows = "1fr 1fr 0.5fr";
-            videos[4].style.gridColumn = "1 / 3";
-            videos[4].style.gridRow = "3 / 4";
-            videos[4].style.maxWidth = "50%";
-            videos[4].style.margin = "0 auto";
+            videoGrid.style.gridTemplateColumns = "1fr 1fr 1fr";
+            videoGrid.style.gridTemplateRows = "1fr 1fr";
+            videos[0].style.gridColumn = "1 / 2";
+            videos[1].style.gridColumn = "2 / 3";
+            videos[2].style.gridColumn = "3 / 4";
+            videos[3].style.gridColumn = "1 / 3";
+            videos[4].style.gridColumn = "3 / 4";
         } else if (numVideos === 6) {
             videoGrid.style.gridTemplateColumns = "1fr 1fr 1fr";
             videoGrid.style.gridTemplateRows = "1fr 1fr";
@@ -283,7 +282,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function getBestEncoding(numVideos) {
-        // Adjusts video encoding parameters based on the number of participants
         if (numVideos <= 2) {
             return { maxBitrate: 1500 * 1024, scaleResolutionDownBy: 1.0 }; // High quality
         } else if (numVideos <= 4) {
