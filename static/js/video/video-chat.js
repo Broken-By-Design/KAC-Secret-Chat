@@ -35,7 +35,10 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: true,
-                audio: true,
+                audio: {
+                    autoGainControl: true,
+                    echoCancellation: true,
+                },
             });
             myVideo.srcObject = localStream;
             await myVideo.play();
@@ -206,7 +209,6 @@ document.addEventListener("DOMContentLoaded", () => {
         remoteNameTag.innerText = nickname;
         remoteVideoWrapper.append(remoteVideo, remoteNameTag);
         videoGrid.append(remoteVideoWrapper);
-        updateVideoGrid();
     }
 
     function cleanupPeer(sid) {
@@ -216,58 +218,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const videoElement = document.getElementById(`video-${sid}`);
         if (videoElement) videoElement.remove();
-        updateVideoGrid();
-    }
-
-    //     }
-    // }
-
-    function updateVideoGrid() {
-        const numVideos = videoGrid.children.length;
-        const videos = Array.from(videoGrid.children);
-
-        // Reset any inline grid styles
-        videoGrid.style.display = "grid";
-        videoGrid.style.gridTemplateColumns = "";
-        videoGrid.style.gridTemplateRows = "";
-        videos.forEach(v => {
-            v.style.gridColumn = "";
-            v.style.gridRow = "";
-        });
-
-        if (numVideos === 1) {
-            videoGrid.style.gridTemplateColumns = "1fr";
-            videoGrid.style.gridTemplateRows = "1fr";
-        } else if (numVideos === 2) {
-            videoGrid.style.gridTemplateColumns = "1fr 1fr";
-            videoGrid.style.gridTemplateRows = "1fr";
-        } else if (numVideos === 3) {
-            videoGrid.style.gridTemplateColumns = "1fr 1fr";
-            videoGrid.style.gridTemplateRows = "1fr 1fr";
-            videos[0].style.gridColumn = "1 / 2";
-            videos[1].style.gridColumn = "2 / 3";
-            videos[2].style.gridColumn = "1 / 3";
-            videos[2].style.gridRow = "2 / 2";
-        } else if (numVideos === 4) {
-            videoGrid.style.gridTemplateColumns = "1fr 1fr";
-            videoGrid.style.gridTemplateRows = "1fr 1fr";
-        } else if (numVideos === 5) {
-            videoGrid.style.gridTemplateColumns = "1fr 1fr 1fr";
-            videoGrid.style.gridTemplateRows = "1fr 1fr";
-            videos[0].style.gridColumn = "1 / 2";
-            videos[1].style.gridColumn = "2 / 3";
-            videos[2].style.gridColumn = "3 / 4";
-            videos[3].style.gridColumn = "1 / 3";
-            videos[4].style.gridColumn = "3 / 4";
-        } else if (numVideos === 6) {
-            videoGrid.style.gridTemplateColumns = "1fr 1fr 1fr";
-            videoGrid.style.gridTemplateRows = "1fr 1fr";
-        } else {
-            const cols = Math.ceil(Math.sqrt(numVideos));
-            const rows = Math.ceil(numVideos / cols);
-            videoGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-            videoGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-        }
     }
 
     // --- UI Controls & Final Cleanup ---
@@ -339,8 +289,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        myVideo.srcObject = new MediaStream([localStream.getVideoTracks()[0]]);
-
+        myVideo.srcObject = localStream;
+        myVideo.play();
         document.getElementById("toggle-screen").textContent = "Share Screen";
     }
 
