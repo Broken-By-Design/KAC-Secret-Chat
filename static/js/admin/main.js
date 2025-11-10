@@ -15,6 +15,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const selectedUsersTitle = document.querySelector(".section_container h1");
     const refreshBtn = document.getElementById("refreshBtn");
     const kickBtn = document.getElementById("kickBtn");
+    const muteBtn = document.getElementById("muteBtn");
+    const unmuteBtn = document.getElementById("unmuteBtn");
+
 
     // Message elements
     const successMessage = document.getElementById("successMessage");
@@ -239,6 +242,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- Wire up all your action buttons ---
     kickBtn.addEventListener("click", () => performAction("kick"));
+    muteBtn.addEventListener("click", () => performAction("mute"));
+    unmuteBtn.addEventListener("click", () => performAction("unmute"));
+
     document.getElementById("1dayBanBtn").addEventListener("click", () => {
         if (
             confirm(

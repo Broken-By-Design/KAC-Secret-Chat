@@ -486,6 +486,15 @@ def handle_connect():
     # print(globals.users_with_sid)
     
 
+
+@socketio.on("request_status")
+def handle_request_status():
+    nickname = session.get('nickname')
+    sid = request.sid
+    if nickname:
+        is_muted = nickname in globals.muted_users
+        socketio.emit('user_status', {'is_muted': is_muted}, room=sid)
+
 @socketio.on("disconnect")
 def handle_disconnect():
     nickname_to_remove = None
@@ -921,6 +930,45 @@ def kick_users():
         return jsonify({"message": "No active users found with the provided names."}), 404
         
     return jsonify({"message": f"Successfully sent logout command to {kicked_count} user(s)."}), 200
+
+@app.route("/admin/mute", methods=['POST'])
+@admin_required
+def mute_users():
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+
+    users_to_kick = data['users']
+
+    for user in users_to_kick:
+        sid_to_kick = globals.users_with_sid.get(user)
+        if sid_to_kick:
+            globals.muted_users.add(user)
+
+            socketio.emit('force_mute', {}, room=sid_to_kick)            
+            print(f"Sent force_mute command to {user} (SID: {sid_to_kick}).")
+        
+    return jsonify({"message": f"Successfully sent mute command"}), 200
+
+@app.route("/admin/unmute", methods=['POST'])
+@admin_required
+def unmute_users():
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+
+    users_to_kick = data['users']
+
+    for user in users_to_kick:
+        sid_to_kick = globals.users_with_sid.get(user)
+        if sid_to_kick:
+            globals.muted_users.remove(user)
+
+            socketio.emit('force_unmute', {}, room=sid_to_kick)            
+            print(f"Sent force_unmute command to {user} (SID: {sid_to_kick}).")
+        
+    return jsonify({"message": f"Successfully sent unmute command"}), 200
+
 
 @app.route("/admin/ban", methods=['POST'])
 @app.route("/admin/ip-ban", methods=['POST'])

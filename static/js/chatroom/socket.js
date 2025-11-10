@@ -95,7 +95,8 @@ var ChatApp = window.ChatApp || {};
      */
     function initializeListeners() {
         socket.on("connect", function () {
-            ui.enableInputs();
+            // ui.enableInputs();
+            socket.emit("request_status");
             console.log("Connection Established");
         });
 
@@ -162,6 +163,22 @@ var ChatApp = window.ChatApp || {};
         });
         socket.on("force_cloak", function () {
             cloak();
+        });
+
+        socket.on("force_mute", function () {
+            ui.disableInputs("You are muted.");
+        });
+
+        socket.on("force_unmute", function () {
+            ui.enableInputs();
+        });
+
+        socket.on("user_status", function (data) {
+            if (data.is_muted) {
+                ui.disableInputs("You are muted.");
+            } else {
+                ui.enableInputs();
+            }
         });
 
         socket.on("system_message", function (msg) {

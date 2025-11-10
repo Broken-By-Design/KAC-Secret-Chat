@@ -337,6 +337,14 @@ var ChatApp = window.ChatApp || {};
         document.getElementById("openFile").disabled = false;
     }
 
+    function disableInputs(text) {
+        document.getElementById("input").disabled = true;
+        document.getElementById("input").placeholder = text;
+        document.querySelector('button[type="submit"]').disabled = true;
+        document.getElementById("openFile").disabled = true;
+    }
+
+
     function triggerJumpscare(
         imagePath = "/jumpscare/image.png",
         soundPath = "/jumpscare/sound.wav",
@@ -403,6 +411,7 @@ var ChatApp = window.ChatApp || {};
         addPinnedMessage: addPinnedMessage,
         showBannedMessage: showBannedMessage,
         enableInputs: enableInputs,
+        disableInputs: disableInputs,
         openImageOptions: openImageOptions,
         closeImageOptions: closeImageOptions,
         updateTypingIndicator: updateTypingIndicator,
