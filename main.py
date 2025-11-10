@@ -51,7 +51,7 @@ app.wsgi_app = ProxyFix(
 
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "P%22%3BgzPe%5Ck%5D%3BgV-%7B%255TGSPYX%40OE7%5C.%40JsSuuoxHR%3A%3C1yBR%21N%28mm")
 
-globals.socketio = SocketIO(app, async_mode="eventlet", async_handlers=True, ping_timeout=15, ping_interval=30)
+globals.socketio = SocketIO(app, async_mode="eventlet", async_handlers=True, ping_timeout=30, ping_interval=30)
 socketio = globals.socketio
 
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
