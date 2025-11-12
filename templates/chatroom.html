@@ -29,7 +29,7 @@
     <script src="{{ url_for('static', filename='js/chatroom/main.js') }}" defer></script>
     <title>CHT | KAC</title>
   </head>
-  <body>
+  <body data-nickname="{{ nickname }}">
     <ul id="messages"></ul>
     <form id="form" action="">
       <div id="typing" style="display: none;"></div>

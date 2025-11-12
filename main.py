@@ -755,7 +755,7 @@ def index():
     # acceptance_cookie = request.cookies.get('acceptance_cookie')
     # nickname_cookie = request.cookies.get('nickname')
     if session.get('logged_in') and session.get('acceptance_token') == app.config['CHAT_SECRET_KEY'] and session.get('nickname'):
-        return render_template('chatroom.html')
+        return render_template('chatroom.html', nickname=session.get('nickname'))
     else:
         return render_template('login.html')
     # return render_template('index.html')

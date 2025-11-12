@@ -121,6 +121,15 @@ body {
   animation: pulse 2s infinite ease-in-out;/* subtle pulse so it’s not dead */
 }
 
+.mention-highlight {
+  font-weight: bolder; /* Make it even bolder */
+  color: #ffeb3b; /* A vibrant yellow for high contrast */
+  background-color: rgba(255, 235, 59, 0.2); /* Slightly highlight the background with a matching color */
+  padding: 2px 4px;
+  border-radius: 3px;
+  text-shadow: 0 0 5px rgba(255, 235, 59, 0.7); /* Add a subtle glow */
+}
+
 #openFile {
   background: none !important;
   width: fit-content;

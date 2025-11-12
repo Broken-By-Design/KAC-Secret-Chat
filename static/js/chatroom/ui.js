@@ -112,17 +112,24 @@ var ChatApp = window.ChatApp || {};
     function addMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
 
-        // const formattedMessage = utils.linkify(message);
-        const formattedMessage = utils.linkify(
+        const currentUserNickname = document.body.dataset.nickname;
+
+        let processedMessage = utils.linkify(
             marked.parseInline(HtmlSanitizer.SanitizeHtml(message))
         );
+
+        // Highlight mentions of the current user's nickname
+        if (currentUserNickname) {
+            const mentionRegex = new RegExp(`@${currentUserNickname}\\b`, 'gi');
+            processedMessage = processedMessage.replace(mentionRegex, (match) => `<span class="mention-highlight">${match}</span>`);
+        }
 
         const item = document.createElement("li");
 
         item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
             nickname
         )}:</b> ${createEmbed(
-            formattedMessage
+            processedMessage
         )} <span id="timestamp">${utils.formatTime(timestamp)}</span>`;
         messages.appendChild(item);
 
