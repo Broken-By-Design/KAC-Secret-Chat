@@ -13,6 +13,8 @@ var ChatApp = window.ChatApp || {};
         // },
     });
 
+    let lastMessageTimestamp = null;
+
     // --- Private Functions ---
 
     /**
@@ -100,6 +102,64 @@ var ChatApp = window.ChatApp || {};
             console.log("Connection Established");
         });
 
+        socket.on("disconnect", () => {
+            console.log("Connection lost. Attempting to reconnect...");
+            // Optional: Add a visual indicator for the user
+            // e.g., ui.showReconnectingIndicator();
+            setTimeout(() => {
+                socket.connect();
+            }, 5000); // Attempt to reconnect every 5 seconds
+        });
+
+        socket.on("reconnect", () => {
+            console.log("Reconnected to the server!");
+            // Optional: Hide the reconnecting indicator
+            // e.g., ui.hideReconnectingIndicator();
+
+            // Request messages that were missed during the disconnection
+            if (lastMessageTimestamp) {
+                socket.emit("request_missed_messages", {
+                    after: lastMessageTimestamp,
+                });
+            }
+        });
+
+        socket.on("missed_messages", (messages) => {
+            if (messages && messages.length > 0) {
+                messages.forEach((msg) => {
+                    // Reuse the existing UI functions to add messages
+                    if (msg.type === "image") {
+                        ui.addImageMessage(
+                            msg.id,
+                            msg.nickname,
+                            msg.timestamp
+                        );
+                    } else if (msg.highlight) {
+                        ui.addHighlightedMessage(
+                            msg.message,
+                            msg.nickname,
+                            msg.timestamp
+                        );
+                    } else if (msg.system) {
+                        ui.addSystemMessage(
+                            msg.message,
+                            msg.nickname,
+                            msg.timestamp
+                        );
+                    } else {
+                        ui.addMessage(
+                            msg.message,
+                            msg.nickname,
+                            msg.timestamp
+                        );
+                    }
+                });
+                // Update the timestamp to the last message received
+                lastMessageTimestamp = messages[messages.length - 1].timestamp;
+                ui.scrollToBottom();
+            }
+        });
+
         socket.on("chat_message", (msg) => {
             // Delegate UI updates to the UI module
             if (msg.highlight) {
@@ -114,6 +174,8 @@ var ChatApp = window.ChatApp || {};
                 ui.addMessage(msg.message, msg.nickname, msg.timestamp);
             }
 
+            lastMessageTimestamp = msg.timestamp;
+
             if (document.hidden) {
                 ui.incrementMissedCount();
                 ui.updateTitle();
@@ -126,6 +188,7 @@ var ChatApp = window.ChatApp || {};
 
         socket.on("add_image", (data) => {
             ui.addImageMessage(data.id, data.nickname, data.timestamp);
+            lastMessageTimestamp = data.timestamp;
             if (document.hidden) {
                 ui.incrementMissedCount();
                 ui.updateTitle();

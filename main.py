@@ -505,6 +505,9 @@ def handle_disconnect():
         nickname = video_chat_users[sid]
         print(f"VIDEO LOUNGE: {nickname} ({sid}) left.")
         del video_chat_users[sid]
+        if sid in globals.screen_sharers:
+            globals.screen_sharers.remove(sid)
+            socketio.emit('screen_sharing_stopped', {'sid': sid})
         # Notify all other clients that this user has left
         socketio.emit('user_left_lounge', sid)
 
@@ -540,6 +543,50 @@ def remove_from_jumpscare_list(data):
     nickname = session.get('nickname')
     if nickname in globals.users_to_crash:
         globals.users_to_crash.remove(nickname)
+
+@socketio.on("request_missed_messages")
+def handle_request_missed_messages(data):
+    """
+    Handles a client's request for messages sent after a certain time.
+    """
+    after_timestamp_str = data.get('after')
+    if not after_timestamp_str:
+        return  # Ignore if no timestamp is provided
+
+    try:
+        # Ensure the timestamp from the client is in UTC
+        after_timestamp = datetime.datetime.fromisoformat(after_timestamp_str.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        print(f"Invalid timestamp format received: {after_timestamp_str}")
+        return
+
+    missed_messages = []
+    if globals.current_log_file and os.path.exists(globals.current_log_file):
+        with open(globals.current_log_file, 'r') as f:
+            try:
+                chatlogs = json.load(f)
+                for log in chatlogs:
+                    log_timestamp_str = log.get('timestamp')
+                    if not log_timestamp_str:
+                        continue
+                    
+                    try:
+                        # Ensure the log timestamp is in UTC for comparison
+                        log_timestamp = datetime.datetime.fromisoformat(log_timestamp_str.replace('Z', '+00:00'))
+                        if log_timestamp > after_timestamp:
+                            missed_messages.append(log)
+                    except (ValueError, TypeError):
+                        # a T Z in the timestamp
+                        continue # Ignore logs with invalid timestamp format
+
+            except json.JSONDecodeError:
+                print(f"Could not decode JSON from {globals.current_log_file}")
+
+    if missed_messages:
+        # Sort messages by timestamp just in case they are out of order
+        missed_messages.sort(key=lambda x: x['timestamp'])
+        socketio.emit('missed_messages', missed_messages, room=request.sid)
+
 
 @socketio.on("chat_message")
 def handle_chat_message(data):
@@ -700,6 +747,9 @@ def handle_join_video_lounge():
     socketio.emit('user_joined_lounge', {'sid': sid, 'nickname': nickname}, skip_sid=sid)
     print(f"VIDEO LOUNGE: {nickname} ({sid}) joined.")
 
+    for sharer_sid in globals.screen_sharers:
+        socketio.emit('screen_sharing_started', {'sid': sharer_sid}, room=sid)
+
 # --- WebRTC Signaling Passthrough Events ---
 
 @socketio.on('webrtc_offer')
@@ -730,6 +780,18 @@ def handle_webrtc_candidate(data):
         'candidate': candidate,
         'senderSid': request.sid
     }, room=target_sid)
+
+@socketio.on('screen_sharing_started')
+def handle_screen_sharing_started():
+    sid = request.sid
+    globals.screen_sharers.add(sid)
+    socketio.emit('screen_sharing_started', {'sid': sid}, skip_sid=sid)
+
+@socketio.on('screen_sharing_stopped')
+def handle_screen_sharing_stopped():
+    sid = request.sid
+    globals.screen_sharers.remove(sid)
+    socketio.emit('screen_sharing_stopped', {'sid': sid}, skip_sid=sid)
 
 @app.route('/')
 def root_redirect():

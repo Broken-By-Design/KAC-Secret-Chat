@@ -67,6 +67,20 @@ document.addEventListener("DOMContentLoaded", () => {
     socket.on("webrtc_answer", handleAnswer);
     socket.on("webrtc_candidate", handleCandidate);
 
+    socket.on("screen_sharing_started", (data) => {
+        const videoWrapper = document.getElementById(`video-${data.sid}`);
+        if (videoWrapper) {
+            videoWrapper.classList.add("screen-sharing");
+        }
+    });
+
+    socket.on("screen_sharing_stopped", (data) => {
+        const videoWrapper = document.getElementById(`video-${data.sid}`);
+        if (videoWrapper) {
+            videoWrapper.classList.remove("screen-sharing");
+        }
+    });
+
     // --- Core Logic Functions ---
     function handleNewUser(user, isInitiator) {
         if (user.sid === socket.id) return;
@@ -259,6 +273,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             myVideo.srcObject = screenStream;
+            myVideoWrapper.classList.add("screen-sharing");
+            socket.emit("screen_sharing_started");
 
             document.getElementById("toggle-screen").textContent =
                 "Stop Sharing";
@@ -291,6 +307,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         myVideo.srcObject = localStream;
         myVideo.play();
+        myVideoWrapper.classList.remove("screen-sharing");
+        socket.emit("screen_sharing_stopped");
         document.getElementById("toggle-screen").textContent = "Share Screen";
     }
 

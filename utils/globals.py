@@ -22,3 +22,4 @@ muted_users = set()
 banned_ips_cache = {}
 
 video_chat_users = {}
+screen_sharers = set()
