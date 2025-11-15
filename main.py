@@ -100,11 +100,6 @@ def check_if_kicked():
 
 @app.before_request
 def check_ban_status():
-    """
-    Runs before every request to check if the user's IP is in the
-    database's BanList. If so, it stops the request and shows the banned page.
-    """
-    # We don't need to run this check on the banned page itself, or we'll get a redirect loop.
     if request.endpoint == 'banned_page' or request.path.startswith('/static/') or request.path.startswith('/admin') or request.path.startswith('/get-users'):
         return
 
@@ -144,7 +139,6 @@ while db_pool is None:
                                                               pool_size=10,
                                                               **db_config)
         print("✅ Successfully created database connection pool.")
-        # If the connection is successful, the loop will exit.
     except mysql.connector.Error as err:
         print(f"⚠️ Database connection failed: {err}")
         print("Retrying in 3 seconds...")
@@ -156,14 +150,6 @@ ai_client = genai.Client(api_key=app.config['GEMINI_API_KEY'])
 with open("ai_personality.txt", "r") as f:
     ai_personality = f.read()
 
-# globals.current_log_file = globals.globals.current_log_file
-
-# globals.connected_usernames = globals.globals.connected_usernames
-
-# globals.typing_users = set()
-
-# globals.ai_prompt_history = []
-
 _image_buffers: dict[str, list[bytes]] = defaultdict(list)
 
 def run_periodic_ban_sync():
@@ -173,7 +159,6 @@ def run_periodic_ban_sync():
         sync_ban_list_from_db()
 
 def clear_chatlogs():
-    # global globals.current_log_file
     chatlogs_dir = 'chatlogs'
 
     if not os.path.exists(os.path.join(chatlogs_dir, "images")) or not os.path.exists(chatlogs_dir):
@@ -205,8 +190,6 @@ def load_recent_chat_context(num_messages=10):
     if globals.current_log_file and os.path.exists(globals.current_log_file):
         with open(globals.current_log_file, "r") as f:
             chatlogs = json.load(f)
-        # Filter out messages from 'KAC-Bot' and take the last num_messages messages
-        # filtered_logs = [log for log in chatlogs if log['nickname'] != "KAC-Bot"]
         filtered_logs = chatlogs
         for log in filtered_logs[-num_messages:]:
             chat_context += f"{log['nickname']}: {log['message']}\n"
@@ -217,54 +200,12 @@ def load_recent_chat_context_dict(num_messages=10):
     if globals.current_log_file and os.path.exists(globals.current_log_file):
         with open(globals.current_log_file, "r") as f:
             chatlogs = json.load(f)
-        # Filter out messages from 'KAC-Bot' and take the last num_messages messages
-        # filtered_logs = [log for log in chatlogs if log['nickname'] != "KAC-Bot"]
         filtered_logs = chatlogs
         for log in filtered_logs[-num_messages:]:
             chat_context.append(log)
     return chat_context
 
-# def add_to_prompt_history_safe(role: str, text: str, image_part: bytes = None, type: str = "text"):
-#     # global globals.ai_prompt_history
-
-#     if type == "text":
-#         if len(globals.ai_prompt_history) <= 20:
-#             globals.ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
-#         else:
-#             globals.ai_prompt_history.pop(0)
-#             globals.ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
-#     elif type == "image":
-#         if not image_part:
-#             raise ValueError("image_part required when type='image'")
-#         if len(globals.ai_prompt_history) <= 20:
-#             globals.ai_prompt_history.append(types.Content(role=role, parts=[types.Part.from_text(text=text), image_part]))
-#         else:
-#             globals.ai_prompt_history.pop(0)
-#             # globals.ai_prompt_history.append(types.Content(role=role, parts=[types.Part(text=text)]))
-#             globals.ai_prompt_history.append(types.Content(role=role, parts=[types.Part.from_text(text=text), image_part]))
-
-
-# def get_online_users() -> list[str]:
-#     global globals.connected_usernames
-#     # print("Getting online users")
-#     # return globals.connected_usernames
-#     return list(set(globals.connected_usernames))
-
-# def initialize_ai_history_from_log(num_messages=20):
-#     global globals.ai_prompt_history
-
-#     if not globals.ai_prompt_history:
-#         recent_logs = load_recent_chat_context_dict(num_messages=num_messages)
-#         if not recent_logs:
-#             return
-
-#         globals.ai_prompt_history = [
-#             types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part(text=log['message'] if log["type"] == "text" else f"{log.get('nickname')} sent an image.")])
-#             for log in recent_logs
-#         ]
-
 def initialize_ai_history_from_log(num_messages=100):
-    # global globals.ai_prompt_history
 
     if not globals.ai_prompt_history:
         recent_logs = load_recent_chat_context_dict(num_messages=num_messages)
@@ -279,32 +220,12 @@ def initialize_ai_history_from_log(num_messages=100):
                     types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part(text=log['message'])])
                 )
             elif log["type"] == "image":
-                # image_id = log['id']  # Assuming 'id' is used for the image identifier
-                # image_pattern = f'chatlogs/images/{image_id}.*'
-                # matched_files = glob.glob(image_pattern)
                 globals.ai_prompt_history.append(
                         types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part.from_text(text=f"{log.get('nickname')} sent an image.")])
                     )
 
-                # print(full_image_pathc)
-                # if matched_files:
-                #     image_path = matched_files[0]
-                #     print(image_path)
-                #     with open(image_path, 'rb') as img_file:
-                #         image_bytes = img_file.read()
-                #         image_part = types.Part.from_uri(data=image_bytes, mime_type="image/*")
-                #         globals.ai_prompt_history.append(
-                #             types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part.from_text(text=f"{log.get('nickname')} sent an image."), image_part])
-                #         )
-                # else:
-                #     globals.ai_prompt_history.append(
-                #         types.Content(role="user" if log.get('nickname') != 'KAC-Bot' else "model", parts=[types.Part.from_text(text=f"{log.get('nickname')} sent an image. (Image missing)")]
-                #     ))
-
-
 def generate_response(message: str, user: str, enable_google_search: bool = True, image = False, image_id = None):
     global ai_client
-    # global globals.ai_prompt_history
 
     google_search_tool = types.Tool(
        google_search = types.GoogleSearch(),
@@ -317,8 +238,6 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         )
 
     if image:
-        # if not request_cookies:
-        #     raise ValueError("request_cookies(dict) required when image=True")
         if image_id:
             image_path = f"http://0.0.0.0:5000/get_image/{image_id}"
             image_bytes = requests.get(image_path).content
@@ -328,8 +247,6 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
             image_file = types.Part.from_bytes(
                 data=image_bytes, mime_type=mime_type
             )
-            # print(f"Image file: {image_file}")
-            # image_file = ai_client.files.upload(file="")
         else:
             raise ValueError("image_id required when image=True")
         tmp_history = globals.ai_prompt_history.copy()
@@ -337,7 +254,6 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         response = ai_client.models.generate_content(
             model="gemini-2.5-flash-lite",
             config=generate_content_config,
-            # contents=globals.ai_prompt_history,
             contents=tmp_history
         )
         add_to_prompt_history_safe("user", f"{user} sent an image and asked {message}", type="text")
@@ -350,80 +266,26 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         contents=globals.ai_prompt_history,
     )
 
-    # print(f"Done!\tResponse: {response.text}")
-
-    # add_to_prompt_history_safe("model", response.text)
-
     for part in response.candidates[0].content.parts:
         if part.text is not None:
             # print(part.text)
             add_to_prompt_history_safe("model", response.text)
             return response.text
 
-    # if response.text:
-    #     return response.text
-    # else:
-    #     print(response)
-    #     return "Failed to generate a response. If you are a developer please check the logs."
-
-    # tool_call = response.candidates[0].content.parts[0].function_call
-
-    # tool_call = None
-    # for part in response.candidates[0].content.parts:
-    #     if part.function_call:
-    #         tool_call = part.function_call
-    #         break # Found the first function call
-
-    # if tool_call and tool_call.name == "get_online_users":
-    #     result = get_online_users()
-    #     print("Called get_online_users function, result:", result)
-    #     function_response_part = types.Part.from_function_response(
-    #         name=tool_call.name,
-    #         response={"result": result},
-    #     )
-        
-    #     globals.ai_prompt_history.append(types.Content(role="model", parts=[types.Part(function_call=tool_call)],))
-    #     globals.ai_prompt_history.append(types.Content(role="function", parts=[function_response_part]))
-
-    #     final_response = ai_client.models.generate_content(
-    #         model="gemini-2.0-flash",
-    #         # system_instruction=ai_personality,
-    #         config=generate_content_config,
-    #         contents=globals.ai_prompt_history,
-    #     )
-    #     return final_response.text
-    # else:
-    #     return response.text
-
 
 def get_real_ip(request_obj):
-    """
-    Safely gets the real IP address from a request, prioritizing Cloudflare's
-    header and then falling back to standard proxy headers.
-    """
-
-    # 1. Prioritize Cloudflare's header. This is the most reliable in your setup.
-    #    The raw header name is 'Cf-Connecting-Ip', which Flask makes available
-    #    in the headers dictionary.
     if 'Cf-Connecting-Ip' in request_obj.headers:
         return request_obj.headers.get('Cf-Connecting-Ip')
 
-    # 2. Fallback to the standard 'X-Forwarded-For' header.
-    #    This is for environments without Cloudflare.
     if 'X-Forwarded-For' in request_obj.headers:
-        # The header can contain a list of IPs; the first one is the original client.
         return request_obj.headers.get('X-Forwarded-For').split(',')[0].strip()
 
     if 'HTTP_CF_CONNECTING_IP' in request_obj.environ:
         return request_obj.environ.get('HTTP_CF_CONNECTING_IP')
 
-    # 2. Fallback to the standard 'X-Forwarded-For' header.
-    #    Header 'X-Forwarded-For' becomes 'HTTP_X_FORWARDED_FOR'.
     if 'HTTP_X_FORWARDED_FOR' in request_obj.environ:
-        # The header can contain a list of IPs; the first one is the original client.
         return request_obj.environ.get('HTTP_X_FORWARDED_FOR').split(',')[0].strip()
-        
-    # 3. Final fallback to the direct connection address.
+    
     return request_obj.remote_addr
 
 def sync_ban_list_from_db():
@@ -438,18 +300,15 @@ def sync_ban_list_from_db():
         conn = db_pool.get_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # Select all bans that are currently marked as active
         cursor.execute("SELECT target_ip, target_username, expires_at FROM BanList WHERE is_active = TRUE")
         active_bans = cursor.fetchall()
         
         temp_cache = {}
         for ban in active_bans:
-            # Check if the ban has expired right here. No need to cache expired bans.
             expires_at = ban['expires_at']
             if expires_at is None or expires_at > datetime.datetime.utcnow():
                 temp_cache[f"{ban['target_username']}@{ban['target_ip']}"] = expires_at
 
-        # Atomically replace the old cache with the new one
         globals.banned_ips_cache = temp_cache
         
         print(f"SYNC COMPLETE: Loaded {len(globals.banned_ips_cache)} active bans into cache.")
@@ -483,7 +342,6 @@ def handle_connect():
         if nickname in globals.users_to_crash:
             socketio.emit('force_crash', room=sid)
 
-    # print(globals.users_with_sid)
     
 
 
@@ -508,7 +366,6 @@ def handle_disconnect():
         if sid in globals.screen_sharers:
             globals.screen_sharers.remove(sid)
             socketio.emit('screen_sharing_stopped', {'sid': sid})
-        # Notify all other clients that this user has left
         socketio.emit('user_left_lounge', sid)
 
     for nickname, sid in globals.users_with_sid.items():
@@ -529,8 +386,6 @@ def handle_disconnect():
         globals.users_with_sid.pop(nickname_to_remove, None)
         globals.users_with_IP.pop(nickname_to_remove, None)
 
-    
-    # socketio.emit('user_disconnected', nickname)
 
 @socketio.on("user_jumpscared")
 def remove_from_jumpscare_list(data):
@@ -551,10 +406,9 @@ def handle_request_missed_messages(data):
     """
     after_timestamp_str = data.get('after')
     if not after_timestamp_str:
-        return  # Ignore if no timestamp is provided
+        return
 
     try:
-        # Ensure the timestamp from the client is in UTC
         after_timestamp = datetime.datetime.fromisoformat(after_timestamp_str.replace('Z', '+00:00'))
     except (ValueError, TypeError):
         print(f"Invalid timestamp format received: {after_timestamp_str}")
@@ -571,19 +425,15 @@ def handle_request_missed_messages(data):
                         continue
                     
                     try:
-                        # Ensure the log timestamp is in UTC for comparison
                         log_timestamp = datetime.datetime.fromisoformat(log_timestamp_str.replace('Z', '+00:00'))
                         if log_timestamp > after_timestamp:
                             missed_messages.append(log)
                     except (ValueError, TypeError):
-                        # a T Z in the timestamp
-                        continue # Ignore logs with invalid timestamp format
-
+                        continue
             except json.JSONDecodeError:
                 print(f"Could not decode JSON from {globals.current_log_file}")
 
     if missed_messages:
-        # Sort messages by timestamp just in case they are out of order
         missed_messages.sort(key=lambda x: x['timestamp'])
         socketio.emit('missed_messages', missed_messages, room=request.sid)
 
@@ -612,14 +462,10 @@ def handle_private_message(data):
     
     print(f"Private message from {sender} to {recipient}: {message}")
     
-    # Save the DM to chat logs with recipient field
     add_chatlog_entry(message, sender, timestamp, globals.current_log_file, type="dm", recipient=recipient)
     
-    # Get socket IDs for both sender and recipient
     sender_sid = globals.users_with_sid.get(sender)
     recipient_sid = globals.users_with_sid.get(recipient)
-    
-    # Emit to both sender (acknowledgment) and recipient
     dm_payload = {
         'message': message,
         'from': sender,
@@ -635,7 +481,6 @@ def handle_private_message(data):
 
 @socketio.on("chat_message")
 def handle_chat_message(data):
-    # print(globals.ai_prompt_history)
     message = data.get('message')
     nickname = session.get('nickname')
     timestamp = data.get('timestamp')
@@ -646,7 +491,6 @@ def handle_chat_message(data):
         globals.users_with_sid[nickname] = request.sid
         globals.users_with_IP[nickname] = get_real_ip(request)
 
-    # print(f"Received message: {message} from {nickname} at {timestamp}")
     if message == "/clear":
         socketio.emit('clear_chat', room=request.sid)
         return
@@ -705,15 +549,12 @@ def handle_image_chunk(data):
         )
 
 def assemble_and_emit_image(temp_id, metadata):
-    # join all the chunks
     full_bytes = b''.join(_image_buffers.pop(temp_id, []))
 
-    # dedupe / hash / write to disk
     image_hash = hashlib.sha256(full_bytes).hexdigest()
     images_dir = './chatlogs/images/'
     os.makedirs(images_dir, exist_ok=True)
 
-    # see if it already exists
     existing_id = None
     for fn in os.listdir(images_dir):
         path = os.path.join(images_dir, fn)
@@ -729,7 +570,6 @@ def assemble_and_emit_image(temp_id, metadata):
         with open(out_path, 'wb') as f:
             f.write(full_bytes)
 
-    # emit the event once the image is saved
     socketio.emit('add_image', {
         'id': final_id,
         'nickname': metadata['nickname'],
@@ -737,7 +577,6 @@ def assemble_and_emit_image(temp_id, metadata):
     })
 
     add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], globals.current_log_file, type="image")
-    # add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent an image.")
     if metadata["question"]:
         socketio.emit('chat_message', { 'message': "!bot "+metadata["question"], 'nickname': metadata['nickname'], 'timestamp': metadata['timestamp'] })
         add_chatlog_entry("!bot "+metadata["question"], metadata['nickname'], metadata['timestamp'], globals.current_log_file, type="text")
@@ -752,7 +591,6 @@ def handle_typing(data):
     nickname = session.get('nickname')
     if nickname:
         globals.typing_users.add(nickname)
-        # Broadcast updated list
         socketio.emit('typing_update', {'users': list(globals.typing_users)})
 
 @socketio.on('stop_typing')
@@ -775,27 +613,20 @@ def handle_join_video_lounge():
             
     if old_sid:
         print(f"VIDEO LOUNGE: Detected refresh for {nickname}. Cleaning up old SID: {old_sid}")
-        # Remove the old entry
-        del video_chat_users[old_sid]
-        # Tell everyone else to remove the old video element
-        socketio.emit('user_left_lounge', old_sid)
-    # --- END FIX ---
 
-    # Tell the new user about everyone who is currently in the room
+        del video_chat_users[old_sid]
+        socketio.emit('user_left_lounge', old_sid)
     users_in_lounge = [{'sid': user_sid, 'nickname': user_nick} for user_sid, user_nick in video_chat_users.items()]
     socketio.emit('all_users', users_in_lounge, room=sid)
     
-    # Add the new user to our list
     video_chat_users[sid] = nickname
     
-    # Announce the new user to everyone else
     socketio.emit('user_joined_lounge', {'sid': sid, 'nickname': nickname}, skip_sid=sid)
     print(f"VIDEO LOUNGE: {nickname} ({sid}) joined.")
 
     for sharer_sid in globals.screen_sharers:
         socketio.emit('screen_sharing_started', {'sid': sharer_sid}, room=sid)
 
-# --- WebRTC Signaling Passthrough Events ---
 
 @socketio.on('webrtc_offer')
 def handle_webrtc_offer(data):
@@ -840,8 +671,6 @@ def handle_screen_sharing_stopped():
 
 @app.route('/')
 def root_redirect():
-    # if session.get('logged_in') and session.get('acceptance_token') == app.config['CHAT_SECRET_KEY'] and session.get('nickname'):
-    #     return redirect(url_for('index'))
     
     return render_template('decoy.html')
 
@@ -859,13 +688,10 @@ def video_lounge():
 
 @app.route('/student-portal')
 def index():
-    # acceptance_cookie = request.cookies.get('acceptance_cookie')
-    # nickname_cookie = request.cookies.get('nickname')
     if session.get('logged_in') and session.get('acceptance_token') == app.config['CHAT_SECRET_KEY'] and session.get('nickname'):
         return render_template('chatroom.html', nickname=session.get('nickname'))
     else:
         return render_template('login.html')
-    # return render_template('index.html')
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -880,9 +706,6 @@ def login():
             return render_template('nickname.html')
     else:
         return render_template('login.html', error="Incorrect password")
-    # response = app.make_response(render_template('chatroom.html'))
-    # response.set_cookie('acceptance_cookie', 'true')
-    # return response
 
 @app.route('/set-nickname', methods=['POST'])
 def set_nickname():
@@ -896,23 +719,17 @@ def set_nickname():
         socketio.emit('user_connected', nickname)
         return redirect(url_for('index'))
 
-        # response = make_response(redirect(url_for('index')))
-        # response.set_cookie('nickname', request.form.get("nickname"))
-        # socketio.emit('user_connected', request.form.get("nickname"))
-        # return response
     else:
         return render_template('login.html')
 
 @app.route('/get_chatlogs', methods=['GET'])
 def get_chatlogs():
-    # global globals.current_log_file
     if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
             return "Unauthorized", 401
             
     if globals.current_log_file and os.path.exists(globals.current_log_file):
         with open(globals.current_log_file, 'r') as f:
             chatlogs = json.load(f)
-        # Filter out DM messages from public chat logs
         public_chatlogs = [log for log in chatlogs if log.get('type') != 'dm']
         return jsonify(public_chatlogs)
     else:
@@ -939,10 +756,8 @@ def get_dm_logs():
         with open(globals.current_log_file, 'r') as f:
             all_chatlogs = json.load(f)
         
-        # Filter for DMs between current_user and other_user
         for log in all_chatlogs:
             if log.get('type') == 'dm':
-                # Include DMs where current user is sender or recipient
                 if (log.get('nickname') == current_user and log.get('recipient') == other_user) or \
                    (log.get('nickname') == other_user and log.get('recipient') == current_user):
                     dm_logs.append(log)
@@ -951,7 +766,6 @@ def get_dm_logs():
 
 @app.route('/get_connected_users', methods=['GET'])
 def get_connected_users_route():
-    # global globals.connected_usernames
     if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
             return "Unauthorized", 401
 
@@ -959,20 +773,14 @@ def get_connected_users_route():
 
 @app.route('/get_image/<path:id>', methods=['GET'])
 def get_image(id):
-    # if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
-    #     return "Unauthorized", 401
-
-    # Just grab the filename without extension
     filename = os.path.splitext(id)[0]  # strips extension
     _, ext = os.path.splitext(id)
     filepath = os.path.join("./chatlogs/images/", f"{filename}")
 
-    # If you want to allow files *with* extension too
-    # you can loop through allowed extensions and check if the file exists
     for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.psd', '.raw', '.svg', '.heif', '.jp2', '.jpx', '.jpm', '.j2k', '.mj2']:
         full_path = filepath + ext
         if os.path.exists(full_path):
-            return send_file(full_path)  # or whatever you need to do
+            return send_file(full_path)
 
     return "File not found", 404
 
@@ -980,17 +788,6 @@ def get_image(id):
 def gamble():
     return render_template('gamble.html')
 
-# --- ADMIN ---
-
-# def admin_required(f):
-#     """Checks for the admin cookie before allowing access to a route."""
-#     @wraps(f)
-#     def decorated_function(*args, **kwargs):
-#         admin_cookie = request.cookies.get('admin_acceptance_cookie')
-#         if not admin_cookie or admin_cookie != app.config['ADMIN_SECRET_KEY']:
-#             return jsonify({"message": "Authentication required"}), 401
-#         return f(*args, **kwargs)
-#     return decorated_function
 
 def admin_required(f):
     @wraps(f)
@@ -1005,7 +802,7 @@ def admin_required(f):
 def get_ban_expiry(duration_str):
     """Calculates an expiry datetime object from a string."""
     if duration_str == 'permanent':
-        return None  # NULL in the database means permanent
+        return None
     elif duration_str == '1d':
         return datetime.datetime.utcnow() + datetime.timedelta(days=1)
     elif duration_str == '7d':
@@ -1120,7 +917,7 @@ def ip_ban_users():
         return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
         
     users_for_ip_ban = data['users']
-    duration = data.get('duration', 'permanent')  # Default to permanent if not specified
+    duration = data.get('duration', 'permanent')
     expiry_date = get_ban_expiry(duration)
     
     users_with_ips = [
@@ -1141,8 +938,6 @@ def ip_ban_users():
         conn = db_pool.get_connection()
         cursor = conn.cursor()
         
-        # This SQL statement will INSERT a new ban or UPDATE an existing one for the same IP.
-        # It's a very efficient way to handle bans.
         sql = """
             INSERT INTO BanList (target_ip, target_username, expires_at, is_active)
             VALUES (%s, %s, %s, TRUE)
@@ -1151,7 +946,6 @@ def ip_ban_users():
                 is_active = TRUE
         """
         
-        # Prepare data for bulk insertion/update
         ban_data = [(ip, user, expiry_date) for user, ip in users_with_ips]
         cursor.executemany(sql, ban_data)
         conn.commit()
@@ -1168,7 +962,6 @@ def ip_ban_users():
         if 'conn' in locals() and conn:
             conn.close()
 
-    # After banning, kick all users from those IPs
     banned_users = {user for user, _ in users_with_ips}
     for user, user_ip in list(globals.users_with_IP.items()):
         if user in banned_users:
@@ -1206,9 +999,7 @@ def reset_chat():
         return jsonify({"message": "Chat has been successfully reset."}), 200
 
     except Exception as e:
-        # Log the error for debugging purposes.
         print(f"An error occurred while resetting the chat: {e}")
-        # Return an error response to the admin panel.
         return jsonify({"message": "An error occurred during the chat reset."}), 500
 
 @app.route("/admin/reload-all", methods=["POST"])
@@ -1231,7 +1022,7 @@ def jumpscare():
         return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
         
     users_for_jumpscare = data['users']
-    duration = data.get('duration', 'permanent')  # Default to permanent if not specified
+    duration = data.get('duration', 'permanent')
     expiry_date = get_ban_expiry(duration)
     
     for user in users_for_jumpscare:
@@ -1260,7 +1051,6 @@ def send_message_admin():
         add_chatlog_entry(message, nickname, timestamp, globals.current_log_file)
     elif is_system:
         socketio.emit('system_message', { 'message': message, 'highlight': True })
-        #add_chatlog_entry(message, "KAC-Bot", timestamp, globals.current_log_file, type="system" if is_system else "text")
     return jsonify({"message": "Message sent to chat."}), 200
 
 @app.route("/admin/update-bans", methods=["POST"])

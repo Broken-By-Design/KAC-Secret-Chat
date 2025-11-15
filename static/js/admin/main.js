@@ -26,7 +26,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // Global commands
     const resetChatBtn = document.getElementById("resetChatBtn");
     const reloadAllUsersBtn = document.getElementById("reloadAllUsersBtn");
-    const cloakAllUsersBtn = document.getElementById("cloakAllUsersBtn");
     const refreshBanListBtn = document.getElementById("refreshBanListBtn");
     const resetBotHistoryBtn = document.getElementById("resetBotHistoryBtn");
 
@@ -285,9 +284,6 @@ document.addEventListener("DOMContentLoaded", function () {
     );
     reloadAllUsersBtn.addEventListener("click", () =>
         performActionNoUser("reload-all")
-    );
-    cloakAllUsersBtn.addEventListener("click", () =>
-        performActionNoUser("cloak-all")
     );
     refreshBanListBtn.addEventListener("click", () =>
         performActionNoUser("update-bans")
