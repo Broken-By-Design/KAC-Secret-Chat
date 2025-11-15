@@ -259,6 +259,31 @@ var ChatApp = window.ChatApp || {};
         socket.on("force_crash", function () {
             ui.readyCrash = true;
         });
+
+        socket.on("private_message", function (data) {
+            // Handle incoming private messages
+            ui.addPrivateMessage(data.message, data.from, data.to, data.timestamp);
+            
+            if (document.hidden) {
+                ui.incrementMissedCount();
+                ui.updateTitle();
+            }
+        });
+
+        socket.on("private_message_error", function (data) {
+            ui.showDMError(data.error);
+        });
+    }
+
+    /**
+     * Sends a private message to another user.
+     */
+    function sendPrivateMessage(recipient, message) {
+        socket.emit("private_message", {
+            to: recipient,
+            message: message,
+            timestamp: new Date().toISOString()
+        });
     }
 
     // --- PUBLIC INTERFACE ---
@@ -271,5 +296,6 @@ var ChatApp = window.ChatApp || {};
         // Expose the public functions.
         compressAndSendImage: compressAndSendImage,
         initializeListeners: initializeListeners,
+        sendPrivateMessage: sendPrivateMessage,
     };
 })(); // The () at the end immediately executes the function.
