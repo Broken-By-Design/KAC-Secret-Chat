@@ -588,6 +588,51 @@ def handle_request_missed_messages(data):
         socketio.emit('missed_messages', missed_messages, room=request.sid)
 
 
+@socketio.on("private_message")
+def handle_private_message(data):
+    """
+    Handles private messages between users.
+    Expected data: { to: recipientNickname, message: text, timestamp }
+    """
+    message = data.get('message')
+    recipient = data.get('to')
+    timestamp = data.get('timestamp')
+    sender = session.get('nickname')
+    
+    if not sender or sender not in globals.connected_usernames:
+        print(f"Private message rejected: sender {sender} not connected")
+        return
+    
+    if not recipient or recipient not in globals.connected_usernames:
+        print(f"Private message rejected: recipient {recipient} not connected")
+        socketio.emit('private_message_error', {
+            'error': f'User {recipient} is not online'
+        }, room=request.sid)
+        return
+    
+    print(f"Private message from {sender} to {recipient}: {message}")
+    
+    # Save the DM to chat logs with recipient field
+    add_chatlog_entry(message, sender, timestamp, globals.current_log_file, type="dm", recipient=recipient)
+    
+    # Get socket IDs for both sender and recipient
+    sender_sid = globals.users_with_sid.get(sender)
+    recipient_sid = globals.users_with_sid.get(recipient)
+    
+    # Emit to both sender (acknowledgment) and recipient
+    dm_payload = {
+        'message': message,
+        'from': sender,
+        'to': recipient,
+        'timestamp': timestamp
+    }
+    
+    if recipient_sid:
+        socketio.emit('private_message', dm_payload, room=recipient_sid)
+    
+    if sender_sid:
+        socketio.emit('private_message', dm_payload, room=sender_sid)
+
 @socketio.on("chat_message")
 def handle_chat_message(data):
     # print(globals.ai_prompt_history)
@@ -867,9 +912,42 @@ def get_chatlogs():
     if globals.current_log_file and os.path.exists(globals.current_log_file):
         with open(globals.current_log_file, 'r') as f:
             chatlogs = json.load(f)
-        return jsonify(chatlogs)
+        # Filter out DM messages from public chat logs
+        public_chatlogs = [log for log in chatlogs if log.get('type') != 'dm']
+        return jsonify(public_chatlogs)
     else:
         return jsonify([])
+
+@app.route('/get_dm_logs', methods=['GET'])
+def get_dm_logs():
+    """
+    Retrieves DM history between the logged-in user and another user.
+    Query parameter: with=<other_username>
+    """
+    if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
+        return "Unauthorized", 401
+    
+    current_user = session.get('nickname')
+    other_user = request.args.get('with')
+    
+    if not current_user or not other_user:
+        return jsonify({'error': 'Missing required parameters'}), 400
+    
+    dm_logs = []
+    
+    if globals.current_log_file and os.path.exists(globals.current_log_file):
+        with open(globals.current_log_file, 'r') as f:
+            all_chatlogs = json.load(f)
+        
+        # Filter for DMs between current_user and other_user
+        for log in all_chatlogs:
+            if log.get('type') == 'dm':
+                # Include DMs where current user is sender or recipient
+                if (log.get('nickname') == current_user and log.get('recipient') == other_user) or \
+                   (log.get('nickname') == other_user and log.get('recipient') == current_user):
+                    dm_logs.append(log)
+    
+    return jsonify(dm_logs)
 
 @app.route('/get_connected_users', methods=['GET'])
 def get_connected_users():
