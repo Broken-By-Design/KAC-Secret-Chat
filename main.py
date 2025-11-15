@@ -165,6 +165,7 @@ with open("ai_personality.txt", "r") as f:
 # globals.ai_prompt_history = []
 
 _image_buffers: dict[str, list[bytes]] = defaultdict(list)
+_image_path_cache: dict[str, str] = {}  # Cache for image file paths
 
 def run_periodic_ban_sync():
     """A daemon thread that periodically re-syncs the ban list."""
@@ -321,7 +322,11 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         #     raise ValueError("request_cookies(dict) required when image=True")
         if image_id:
             image_path = f"http://0.0.0.0:5000/get_image/{image_id}"
-            image_bytes = requests.get(image_path).content
+            try:
+                image_bytes = requests.get(image_path, timeout=10).content
+            except requests.exceptions.RequestException as e:
+                print(f"Failed to fetch image for AI: {e}")
+                raise ValueError("Failed to fetch image for AI processing")
 
             mime_type = magic.from_buffer(image_bytes, mime=True)
 
@@ -443,16 +448,19 @@ def sync_ban_list_from_db():
         active_bans = cursor.fetchall()
         
         temp_cache = {}
+        current_time = datetime.datetime.utcnow()
         for ban in active_bans:
             # Check if the ban has expired right here. No need to cache expired bans.
             expires_at = ban['expires_at']
-            if expires_at is None or expires_at > datetime.datetime.utcnow():
+            if expires_at is None or expires_at > current_time:
                 temp_cache[f"{ban['target_username']}@{ban['target_ip']}"] = expires_at
 
-        # Atomically replace the old cache with the new one
-        globals.banned_ips_cache = temp_cache
-        
-        print(f"SYNC COMPLETE: Loaded {len(globals.banned_ips_cache)} active bans into cache.")
+        # Only update if there are changes
+        if temp_cache != globals.banned_ips_cache:
+            globals.banned_ips_cache = temp_cache
+            print(f"SYNC COMPLETE: Updated cache with {len(globals.banned_ips_cache)} active bans.")
+        else:
+            print(f"SYNC COMPLETE: No changes detected. Cache still has {len(globals.banned_ips_cache)} active bans.")
 
     except mysql.connector.Error as err:
         print(f"DATABASE ERROR during ban list sync: {err}")
@@ -668,13 +676,17 @@ def assemble_and_emit_image(temp_id, metadata):
     images_dir = './chatlogs/images/'
     os.makedirs(images_dir, exist_ok=True)
 
-    # see if it already exists
+    # see if it already exists - optimized to avoid redundant hash calculations
     existing_id = None
     for fn in os.listdir(images_dir):
         path = os.path.join(images_dir, fn)
-        if os.path.isfile(path) and hashlib.sha256(open(path, 'rb').read()).hexdigest() == image_hash:
-            existing_id = os.path.splitext(fn)[0]
-            break
+        if os.path.isfile(path):
+            # Read file once and calculate hash
+            with open(path, 'rb') as f:
+                file_hash = hashlib.sha256(f.read()).hexdigest()
+            if file_hash == image_hash:
+                existing_id = os.path.splitext(fn)[0]
+                break
 
     final_id = existing_id or generate_random_string()
     if not existing_id:
@@ -683,6 +695,16 @@ def assemble_and_emit_image(temp_id, metadata):
         out_path = os.path.join(images_dir, f"{final_id}{ext}")
         with open(out_path, 'wb') as f:
             f.write(full_bytes)
+        # Cache the path for faster lookups
+        _image_path_cache[final_id] = out_path
+    else:
+        # Update cache if not already present
+        if final_id not in _image_path_cache:
+            for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.psd', '.raw', '.svg', '.heif', '.jp2', '.jpx', '.jpm', '.j2k', '.mj2']:
+                test_path = os.path.join(images_dir, f"{final_id}{ext}")
+                if os.path.exists(test_path):
+                    _image_path_cache[final_id] = test_path
+                    break
 
     # emit the event once the image is saved
     socketio.emit('add_image', {
@@ -886,15 +908,19 @@ def get_image(id):
 
     # Just grab the filename without extension
     filename = os.path.splitext(id)[0]  # strips extension
-    _, ext = os.path.splitext(id)
+    
+    # Check cache first
+    if filename in _image_path_cache and os.path.exists(_image_path_cache[filename]):
+        return send_file(_image_path_cache[filename])
+    
+    # Cache miss - search for the file
     filepath = os.path.join("./chatlogs/images/", f"{filename}")
-
-    # If you want to allow files *with* extension too
-    # you can loop through allowed extensions and check if the file exists
     for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.psd', '.raw', '.svg', '.heif', '.jp2', '.jpx', '.jpm', '.j2k', '.mj2']:
         full_path = filepath + ext
         if os.path.exists(full_path):
-            return send_file(full_path)  # or whatever you need to do
+            # Update cache for future requests
+            _image_path_cache[filename] = full_path
+            return send_file(full_path)
 
     return "File not found", 404
 
