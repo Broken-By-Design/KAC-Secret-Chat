@@ -950,12 +950,12 @@ def get_dm_logs():
     return jsonify(dm_logs)
 
 @app.route('/get_connected_users', methods=['GET'])
-def get_connected_users():
+def get_connected_users_route():
     # global globals.connected_usernames
     if not session.get('logged_in') or session.get('acceptance_token') != app.config['CHAT_SECRET_KEY']:
             return "Unauthorized", 401
 
-    return jsonify(get_connected_users(globals.connected_usernames))
+    return jsonify(get_online_users(globals.connected_usernames))
 
 @app.route('/get_image/<path:id>', methods=['GET'])
 def get_image(id):
