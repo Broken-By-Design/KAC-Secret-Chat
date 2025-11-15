@@ -180,10 +180,14 @@ def clear_chatlogs():
     if not os.path.exists(os.path.join(chatlogs_dir, "images")) or not os.path.exists(chatlogs_dir):
         os.makedirs(os.path.join(chatlogs_dir, "images"))
 
+    # Only remove JSON log files, not the images directory
     for filename in os.listdir(chatlogs_dir):
         file_path = os.path.join(chatlogs_dir, filename)
-        if os.path.isfile(file_path):
+        if os.path.isfile(file_path) and filename.endswith('.json'):
             os.remove(file_path)
+
+    # Clear the image path cache when logs are cleared
+    _image_path_cache.clear()
 
     today = datetime.datetime.now().strftime('%Y-%m-%d')
     globals.current_log_file = os.path.join(chatlogs_dir, f"{today}.json")
@@ -483,6 +487,7 @@ def handle_connect():
     if nickname:
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = sid
+        globals.sid_to_username[sid] = nickname  # Update reverse mapping
         globals.users_with_IP[nickname] = user_ip
 
         if nickname in globals.users_to_jumpscare:
@@ -505,9 +510,10 @@ def handle_request_status():
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    nickname_to_remove = None
-
     sid = request.sid
+    
+    # Use reverse mapping for O(1) lookup instead of iterating through dict
+    nickname_to_remove = globals.sid_to_username.get(sid)
 
     if sid in video_chat_users:
         nickname = video_chat_users[sid]
@@ -518,11 +524,6 @@ def handle_disconnect():
             socketio.emit('screen_sharing_stopped', {'sid': sid})
         # Notify all other clients that this user has left
         socketio.emit('user_left_lounge', sid)
-
-    for nickname, sid in globals.users_with_sid.items():
-        if sid == request.sid:
-            nickname_to_remove = nickname
-            break
 
     if nickname_to_remove:
         print(f"User disconnected: {nickname_to_remove}")
@@ -535,6 +536,7 @@ def handle_disconnect():
             globals.connected_usernames.remove(nickname_to_remove)
 
         globals.users_with_sid.pop(nickname_to_remove, None)
+        globals.sid_to_username.pop(sid, None)  # Clean up reverse mapping
         globals.users_with_IP.pop(nickname_to_remove, None)
 
     
@@ -607,6 +609,7 @@ def handle_chat_message(data):
     if nickname not in globals.connected_usernames:
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = request.sid
+        globals.sid_to_username[request.sid] = nickname  # Update reverse mapping
         globals.users_with_IP[nickname] = get_real_ip(request)
 
     # print(f"Received message: {message} from {nickname} at {timestamp}")
@@ -641,8 +644,14 @@ def handle_chat_message(data):
             add_chatlog_entry(message, "KAC-Bot", timestamp, globals.current_log_file)
     elif message.startswith("/online"):
         online_users = get_online_users(globals.connected_usernames)
-        socketio.emit('chat_message', { 'message': f"{nickname}, The users online are: {', '.join(online_user for online_user in online_users[:-1])}{', and' if len(online_users) > 1 else ''} {online_users[-1]}", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
-        add_chatlog_entry(f"{nickname}, The users online are: {', '.join(online_user for online_user in online_users[:-1])}{', and' if len(online_users) > 1 else ''} {online_users[-1]}", "KAC-Bot", timestamp, globals.current_log_file, type="system")
+        if not online_users:
+            user_list_msg = "No users are currently online."
+        elif len(online_users) == 1:
+            user_list_msg = f"The user online is: {online_users[0]}"
+        else:
+            user_list_msg = f"The users online are: {', '.join(online_users[:-1])}, and {online_users[-1]}"
+        socketio.emit('chat_message', { 'message': f"{nickname}, {user_list_msg}", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
+        add_chatlog_entry(f"{nickname}, {user_list_msg}", "KAC-Bot", timestamp, globals.current_log_file, type="system")
     elif message.startswith("/help"):
         socketio.emit('chat_message', { 'message': html.escape(f"{nickname}, The commands are: !bot <message>, /clear, /online, /hightlight <message>, and /cloak"), 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
         add_chatlog_entry(html.escape(f"{nickname}, The commands are: !bot <message>, /clear, /online, and /hightlight <message>"), "KAC-Bot", timestamp, globals.current_log_file, type="system")

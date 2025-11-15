@@ -10,6 +10,7 @@ typing_users = set()
 ai_prompt_history = []
 
 users_with_sid = {}
+sid_to_username = {}  # Reverse mapping for O(1) lookups
 
 users_with_IP = {}
 
