@@ -460,10 +460,16 @@ var ChatApp = window.ChatApp || {};
         const header = document.createElement("div");
         header.id = "dm-header";
         header.innerHTML = `
-            <button id="back-to-public" onclick="ChatApp.ui.closeDMView()">← Back to Public Chat</button>
+            <button id="back-to-public">← Back to Public Chat</button>
             <span>Direct Message with <b>${HtmlSanitizer.SanitizeHtml(username)}</b></span>
         `;
         messages.parentNode.insertBefore(header, messages);
+        
+        // Add padding to body to prevent header overlap
+        document.body.style.paddingTop = `${header.offsetHeight}px`;
+        
+        // Add event listener for back button
+        document.getElementById("back-to-public").addEventListener("click", closeDMView);
         
         // Load DM history
         fetch(`/get_dm_logs?with=${encodeURIComponent(username)}`, { credentials: "include" })
@@ -489,6 +495,9 @@ var ChatApp = window.ChatApp || {};
         if (header) {
             header.remove();
         }
+        
+        // Reset body padding
+        document.body.style.paddingTop = "0";
         
         messages.innerHTML = ""; // Clear DM messages
         
