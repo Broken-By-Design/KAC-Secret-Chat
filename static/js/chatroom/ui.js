@@ -111,6 +111,9 @@ var ChatApp = window.ChatApp || {};
 
     function addMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
+        
+        // Don't add public messages when in DM view
+        if (activeDMUser) return;
 
         const currentUserNickname = document.body.dataset.nickname;
 
@@ -140,6 +143,9 @@ var ChatApp = window.ChatApp || {};
 
     function addHighlightedMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
+        
+        // Don't add public messages when in DM view
+        if (activeDMUser) return;
 
         const formattedMessage = createEmbed(
             marked.parseInline(HtmlSanitizer.SanitizeHtml(message))
@@ -160,6 +166,9 @@ var ChatApp = window.ChatApp || {};
 
     function addSystemMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
+        
+        // Don't add public messages when in DM view
+        if (activeDMUser) return;
 
         const formattedMessage = utils.linkify(marked.parseInline(message));
         const item = document.createElement("li");
@@ -174,6 +183,9 @@ var ChatApp = window.ChatApp || {};
     }
 
     function addImageMessage(id, nickname, timestamp) {
+        // Don't add public messages when in DM view
+        if (activeDMUser) return;
+        
         const item = document.createElement("li");
         const img = document.createElement("img");
         img.id = id;
@@ -209,6 +221,9 @@ var ChatApp = window.ChatApp || {};
     }
 
     function addUserConnectedMessage(nickname) {
+        // Don't add public messages when in DM view
+        if (activeDMUser) return;
+        
         const item = document.createElement("li");
         item.innerHTML = `Welcome! <b>${HtmlSanitizer.SanitizeHtml(
             nickname
@@ -218,6 +233,9 @@ var ChatApp = window.ChatApp || {};
     }
 
     function addSystemMessageNoUser(message) {
+        // Don't add public messages when in DM view
+        if (activeDMUser) return;
+        
         const item = document.createElement("li");
         item.innerHTML = utils.linkify(marked.parseInline(message));
         messages.appendChild(item);
@@ -501,6 +519,11 @@ var ChatApp = window.ChatApp || {};
     }
     
     function createUserListForDM() {
+        // Check if modal already exists and prevent duplicate
+        if (document.getElementById("dm-user-list")) {
+            return;
+        }
+        
         // This function will be called to create a user list UI for starting DMs
         const userListContainer = document.createElement("div");
         userListContainer.id = "dm-user-list";
