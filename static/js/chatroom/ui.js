@@ -407,12 +407,7 @@ var ChatApp = window.ChatApp || {};
             );
             
             const item = document.createElement("li");
-            item.classList.add("dm-message");
-            if (isFromMe) {
-                item.classList.add("dm-sent");
-            } else {
-                item.classList.add("dm-received");
-            }
+            // Don't add special classes - let it follow the regular alternating pattern
             
             item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
                 displayNickname
