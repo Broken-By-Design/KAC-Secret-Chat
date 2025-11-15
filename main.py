@@ -165,6 +165,7 @@ with open("ai_personality.txt", "r") as f:
 # globals.ai_prompt_history = []
 
 _image_buffers: dict[str, list[bytes]] = defaultdict(list)
+_image_path_cache: dict[str, str] = {}  # Cache for image file paths
 
 def run_periodic_ban_sync():
     """A daemon thread that periodically re-syncs the ban list."""
@@ -179,10 +180,14 @@ def clear_chatlogs():
     if not os.path.exists(os.path.join(chatlogs_dir, "images")) or not os.path.exists(chatlogs_dir):
         os.makedirs(os.path.join(chatlogs_dir, "images"))
 
+    # Only remove JSON log files, not the images directory
     for filename in os.listdir(chatlogs_dir):
         file_path = os.path.join(chatlogs_dir, filename)
-        if os.path.isfile(file_path):
+        if os.path.isfile(file_path) and filename.endswith('.json'):
             os.remove(file_path)
+
+    # Clear the image path cache when logs are cleared
+    _image_path_cache.clear()
 
     today = datetime.datetime.now().strftime('%Y-%m-%d')
     globals.current_log_file = os.path.join(chatlogs_dir, f"{today}.json")
@@ -321,7 +326,11 @@ def generate_response(message: str, user: str, enable_google_search: bool = True
         #     raise ValueError("request_cookies(dict) required when image=True")
         if image_id:
             image_path = f"http://0.0.0.0:5000/get_image/{image_id}"
-            image_bytes = requests.get(image_path).content
+            try:
+                image_bytes = requests.get(image_path, timeout=10).content
+            except requests.exceptions.RequestException as e:
+                print(f"Failed to fetch image for AI: {e}")
+                raise ValueError("Failed to fetch image for AI processing")
 
             mime_type = magic.from_buffer(image_bytes, mime=True)
 
@@ -443,16 +452,19 @@ def sync_ban_list_from_db():
         active_bans = cursor.fetchall()
         
         temp_cache = {}
+        current_time = datetime.datetime.utcnow()
         for ban in active_bans:
             # Check if the ban has expired right here. No need to cache expired bans.
             expires_at = ban['expires_at']
-            if expires_at is None or expires_at > datetime.datetime.utcnow():
+            if expires_at is None or expires_at > current_time:
                 temp_cache[f"{ban['target_username']}@{ban['target_ip']}"] = expires_at
 
-        # Atomically replace the old cache with the new one
-        globals.banned_ips_cache = temp_cache
-        
-        print(f"SYNC COMPLETE: Loaded {len(globals.banned_ips_cache)} active bans into cache.")
+        # Only update if there are changes
+        if temp_cache != globals.banned_ips_cache:
+            globals.banned_ips_cache = temp_cache
+            print(f"SYNC COMPLETE: Updated cache with {len(globals.banned_ips_cache)} active bans.")
+        else:
+            print(f"SYNC COMPLETE: No changes detected. Cache still has {len(globals.banned_ips_cache)} active bans.")
 
     except mysql.connector.Error as err:
         print(f"DATABASE ERROR during ban list sync: {err}")
@@ -475,6 +487,7 @@ def handle_connect():
     if nickname:
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = sid
+        globals.sid_to_username[sid] = nickname  # Update reverse mapping
         globals.users_with_IP[nickname] = user_ip
 
         if nickname in globals.users_to_jumpscare:
@@ -497,9 +510,10 @@ def handle_request_status():
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    nickname_to_remove = None
-
     sid = request.sid
+    
+    # Use reverse mapping for O(1) lookup instead of iterating through dict
+    nickname_to_remove = globals.sid_to_username.get(sid)
 
     if sid in video_chat_users:
         nickname = video_chat_users[sid]
@@ -510,11 +524,6 @@ def handle_disconnect():
             socketio.emit('screen_sharing_stopped', {'sid': sid})
         # Notify all other clients that this user has left
         socketio.emit('user_left_lounge', sid)
-
-    for nickname, sid in globals.users_with_sid.items():
-        if sid == request.sid:
-            nickname_to_remove = nickname
-            break
 
     if nickname_to_remove:
         print(f"User disconnected: {nickname_to_remove}")
@@ -527,6 +536,7 @@ def handle_disconnect():
             globals.connected_usernames.remove(nickname_to_remove)
 
         globals.users_with_sid.pop(nickname_to_remove, None)
+        globals.sid_to_username.pop(sid, None)  # Clean up reverse mapping
         globals.users_with_IP.pop(nickname_to_remove, None)
 
     
@@ -599,6 +609,7 @@ def handle_chat_message(data):
     if nickname not in globals.connected_usernames:
         globals.connected_usernames.add(nickname)
         globals.users_with_sid[nickname] = request.sid
+        globals.sid_to_username[request.sid] = nickname  # Update reverse mapping
         globals.users_with_IP[nickname] = get_real_ip(request)
 
     # print(f"Received message: {message} from {nickname} at {timestamp}")
@@ -633,8 +644,14 @@ def handle_chat_message(data):
             add_chatlog_entry(message, "KAC-Bot", timestamp, globals.current_log_file)
     elif message.startswith("/online"):
         online_users = get_online_users(globals.connected_usernames)
-        socketio.emit('chat_message', { 'message': f"{nickname}, The users online are: {', '.join(online_user for online_user in online_users[:-1])}{', and' if len(online_users) > 1 else ''} {online_users[-1]}", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
-        add_chatlog_entry(f"{nickname}, The users online are: {', '.join(online_user for online_user in online_users[:-1])}{', and' if len(online_users) > 1 else ''} {online_users[-1]}", "KAC-Bot", timestamp, globals.current_log_file, type="system")
+        if not online_users:
+            user_list_msg = "No users are currently online."
+        elif len(online_users) == 1:
+            user_list_msg = f"The user online is: {online_users[0]}"
+        else:
+            user_list_msg = f"The users online are: {', '.join(online_users[:-1])}, and {online_users[-1]}"
+        socketio.emit('chat_message', { 'message': f"{nickname}, {user_list_msg}", 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
+        add_chatlog_entry(f"{nickname}, {user_list_msg}", "KAC-Bot", timestamp, globals.current_log_file, type="system")
     elif message.startswith("/help"):
         socketio.emit('chat_message', { 'message': html.escape(f"{nickname}, The commands are: !bot <message>, /clear, /online, /hightlight <message>, and /cloak"), 'nickname': "KAC-Bot", 'timestamp': timestamp, 'system': True })
         add_chatlog_entry(html.escape(f"{nickname}, The commands are: !bot <message>, /clear, /online, and /hightlight <message>"), "KAC-Bot", timestamp, globals.current_log_file, type="system")
@@ -668,13 +685,17 @@ def assemble_and_emit_image(temp_id, metadata):
     images_dir = './chatlogs/images/'
     os.makedirs(images_dir, exist_ok=True)
 
-    # see if it already exists
+    # see if it already exists - optimized to avoid redundant hash calculations
     existing_id = None
     for fn in os.listdir(images_dir):
         path = os.path.join(images_dir, fn)
-        if os.path.isfile(path) and hashlib.sha256(open(path, 'rb').read()).hexdigest() == image_hash:
-            existing_id = os.path.splitext(fn)[0]
-            break
+        if os.path.isfile(path):
+            # Read file once and calculate hash
+            with open(path, 'rb') as f:
+                file_hash = hashlib.sha256(f.read()).hexdigest()
+            if file_hash == image_hash:
+                existing_id = os.path.splitext(fn)[0]
+                break
 
     final_id = existing_id or generate_random_string()
     if not existing_id:
@@ -683,6 +704,16 @@ def assemble_and_emit_image(temp_id, metadata):
         out_path = os.path.join(images_dir, f"{final_id}{ext}")
         with open(out_path, 'wb') as f:
             f.write(full_bytes)
+        # Cache the path for faster lookups
+        _image_path_cache[final_id] = out_path
+    else:
+        # Update cache if not already present
+        if final_id not in _image_path_cache:
+            for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.psd', '.raw', '.svg', '.heif', '.jp2', '.jpx', '.jpm', '.j2k', '.mj2']:
+                test_path = os.path.join(images_dir, f"{final_id}{ext}")
+                if os.path.exists(test_path):
+                    _image_path_cache[final_id] = test_path
+                    break
 
     # emit the event once the image is saved
     socketio.emit('add_image', {
@@ -886,15 +917,19 @@ def get_image(id):
 
     # Just grab the filename without extension
     filename = os.path.splitext(id)[0]  # strips extension
-    _, ext = os.path.splitext(id)
+    
+    # Check cache first
+    if filename in _image_path_cache and os.path.exists(_image_path_cache[filename]):
+        return send_file(_image_path_cache[filename])
+    
+    # Cache miss - search for the file
     filepath = os.path.join("./chatlogs/images/", f"{filename}")
-
-    # If you want to allow files *with* extension too
-    # you can loop through allowed extensions and check if the file exists
     for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.psd', '.raw', '.svg', '.heif', '.jp2', '.jpx', '.jpm', '.j2k', '.mj2']:
         full_path = filepath + ext
         if os.path.exists(full_path):
-            return send_file(full_path)  # or whatever you need to do
+            # Update cache for future requests
+            _image_path_cache[filename] = full_path
+            return send_file(full_path)
 
     return "File not found", 404
 
