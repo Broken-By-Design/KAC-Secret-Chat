@@ -390,6 +390,153 @@ var ChatApp = window.ChatApp || {};
         }, duration);
     }
 
+    // --- DM FUNCTIONS ---
+    
+    let activeDMUser = null; // Tracks the currently open DM conversation
+    
+    function addPrivateMessage(message, from, to, timestamp) {
+        const currentUserNickname = document.body.dataset.nickname;
+        
+        // Only show the DM if we're in a DM view with this user
+        if (activeDMUser && (from === activeDMUser || to === activeDMUser)) {
+            const isFromMe = from === currentUserNickname;
+            const displayNickname = isFromMe ? from : from;
+            
+            let processedMessage = utils.linkify(
+                marked.parseInline(HtmlSanitizer.SanitizeHtml(message))
+            );
+            
+            const item = document.createElement("li");
+            item.classList.add("dm-message");
+            if (isFromMe) {
+                item.classList.add("dm-sent");
+            } else {
+                item.classList.add("dm-received");
+            }
+            
+            item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
+                displayNickname
+            )}:</b> ${createEmbed(
+                processedMessage
+            )} <span id="timestamp">${utils.formatTime(timestamp)}</span>`;
+            messages.appendChild(item);
+            
+            const elementHeight = item.offsetHeight;
+            const dynamicThreshold = elementHeight + 200;
+            scrollToBottom(false, dynamicThreshold);
+        } else if (!activeDMUser) {
+            // Show a notification if not in DM view
+            showDMNotification(from === currentUserNickname ? to : from);
+        }
+    }
+    
+    function showDMNotification(from) {
+        // Create a simple notification for new DM
+        const notification = document.createElement("div");
+        notification.classList.add("dm-notification");
+        notification.innerHTML = `New message from <b>${HtmlSanitizer.SanitizeHtml(from)}</b>`;
+        notification.onclick = () => {
+            openDMView(from);
+            notification.remove();
+        };
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+    
+    function showDMError(error) {
+        alert(error);
+    }
+    
+    function openDMView(username) {
+        activeDMUser = username;
+        messages.innerHTML = ""; // Clear current messages
+        
+        // Add a header showing who we're DMing with
+        const header = document.createElement("div");
+        header.id = "dm-header";
+        header.innerHTML = `
+            <button id="back-to-public" onclick="ChatApp.ui.closeDMView()">← Back to Public Chat</button>
+            <span>Direct Message with <b>${HtmlSanitizer.SanitizeHtml(username)}</b></span>
+        `;
+        messages.parentNode.insertBefore(header, messages);
+        
+        // Load DM history
+        fetch(`/get_dm_logs?with=${encodeURIComponent(username)}`, { credentials: "include" })
+            .then((res) => res.json())
+            .then((data) => {
+                data.forEach((entry) => {
+                    if (entry.type === "dm" && entry.message) {
+                        addPrivateMessage(entry.message, entry.nickname, entry.recipient, entry.timestamp);
+                    }
+                });
+                scrollToBottom(true);
+            })
+            .catch((error) => {
+                console.error("Error loading DM history:", error);
+            });
+    }
+    
+    function closeDMView() {
+        activeDMUser = null;
+        
+        // Remove DM header
+        const header = document.getElementById("dm-header");
+        if (header) {
+            header.remove();
+        }
+        
+        messages.innerHTML = ""; // Clear DM messages
+        
+        // Reload public chat
+        window.location.reload();
+    }
+    
+    function createUserListForDM() {
+        // This function will be called to create a user list UI for starting DMs
+        const userListContainer = document.createElement("div");
+        userListContainer.id = "dm-user-list";
+        userListContainer.innerHTML = `
+            <h3>Send Direct Message</h3>
+            <div id="dm-users"></div>
+            <button id="close-dm-list">Cancel</button>
+        `;
+        
+        document.body.appendChild(userListContainer);
+        
+        // Fetch connected users
+        fetch("/get_connected_users", { credentials: "include" })
+            .then((res) => res.json())
+            .then((users) => {
+                const currentUser = document.body.dataset.nickname;
+                const userListDiv = document.getElementById("dm-users");
+                
+                users.forEach((user) => {
+                    if (user !== currentUser) {
+                        const userBtn = document.createElement("button");
+                        userBtn.textContent = user;
+                        userBtn.classList.add("dm-user-btn");
+                        userBtn.onclick = () => {
+                            openDMView(user);
+                            userListContainer.remove();
+                        };
+                        userListDiv.appendChild(userBtn);
+                    }
+                });
+            })
+            .catch((error) => {
+                console.error("Error fetching users:", error);
+            });
+        
+        document.getElementById("close-dm-list").onclick = () => {
+            userListContainer.remove();
+        };
+    }
+
     // Run the initialization
     initializeEventListeners();
 
@@ -426,6 +573,14 @@ var ChatApp = window.ChatApp || {};
             messages.innerHTML = "";
         },
         triggerJumpscare: triggerJumpscare,
+
+        // DM functions
+        addPrivateMessage: addPrivateMessage,
+        showDMError: showDMError,
+        openDMView: openDMView,
+        closeDMView: closeDMView,
+        createUserListForDM: createUserListForDM,
+        getActiveDMUser: function() { return activeDMUser; },
 
         // Expose functions to manage the UI state.
         scrollToBottom: scrollToBottom,

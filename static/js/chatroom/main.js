@@ -205,16 +205,24 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // Send the chat message
+        // Send the chat message or DM
         if (ui.input.value) {
             var contents = ui.input.value;
             contents = emoji.replace_colons(contents);
-            // console.log(contents)
-            socket.emit("chat_message", {
-                message: contents,
-                // nickname: utils.getCookie("nickname"),
-                timestamp: new Date().toISOString(),
-            });
+            
+            // Check if we're in a DM view
+            const activeDMUser = ui.getActiveDMUser();
+            if (activeDMUser) {
+                // Send as private message
+                ChatApp.socket.sendPrivateMessage(activeDMUser, contents);
+            } else {
+                // Send as public chat message
+                socket.emit("chat_message", {
+                    message: contents,
+                    // nickname: utils.getCookie("nickname"),
+                    timestamp: new Date().toISOString(),
+                });
+            }
             ui.input.value = "";
         }
     });
@@ -250,6 +258,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // Handle image upload flow
     document.getElementById("openFile").addEventListener("click", function () {
         document.getElementById("fileInput").click();
+    });
+
+    // Handle DM button click
+    document.getElementById("openDM").addEventListener("click", function () {
+        ui.createUserListForDM();
     });
 
     document
