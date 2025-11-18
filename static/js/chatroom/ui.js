@@ -351,6 +351,16 @@ var ChatApp = window.ChatApp || {};
         document.getElementById("openFile").disabled = true;
     }
 
+    function disableMediaOnly() {
+        document.getElementById("openFile").disabled = true;
+        document.getElementById("openFile").title = "Media uploads are disabled for you";
+    }
+
+    function enableMedia() {
+        document.getElementById("openFile").disabled = false;
+        document.getElementById("openFile").title = "";
+    }
+
 
     function triggerJumpscare(
         imagePath = "/jumpscare/image.png",
@@ -419,6 +429,8 @@ var ChatApp = window.ChatApp || {};
         showBannedMessage: showBannedMessage,
         enableInputs: enableInputs,
         disableInputs: disableInputs,
+        disableMediaOnly: disableMediaOnly,
+        enableMedia: enableMedia,
         openImageOptions: openImageOptions,
         closeImageOptions: closeImageOptions,
         updateTypingIndicator: updateTypingIndicator,

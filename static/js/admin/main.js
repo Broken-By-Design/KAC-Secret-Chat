@@ -17,6 +17,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const kickBtn = document.getElementById("kickBtn");
     const muteBtn = document.getElementById("muteBtn");
     const unmuteBtn = document.getElementById("unmuteBtn");
+    const muteMediaBtn = document.getElementById("muteMediaBtn");
+    const unmuteMediaBtn = document.getElementById("unmuteMediaBtn");
 
 
     // Message elements
@@ -244,6 +246,8 @@ document.addEventListener("DOMContentLoaded", function () {
     kickBtn.addEventListener("click", () => performAction("kick"));
     muteBtn.addEventListener("click", () => performAction("mute"));
     unmuteBtn.addEventListener("click", () => performAction("unmute"));
+    muteMediaBtn.addEventListener("click", () => performAction("mute-media"));
+    unmuteMediaBtn.addEventListener("click", () => performAction("unmute-media"));
 
     document.getElementById("1dayBanBtn").addEventListener("click", () => {
         if (

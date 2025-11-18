@@ -493,7 +493,8 @@ def handle_request_status():
     sid = request.sid
     if nickname:
         is_muted = nickname in globals.muted_users
-        socketio.emit('user_status', {'is_muted': is_muted}, room=sid)
+        is_media_muted = nickname in globals.media_muted_users
+        socketio.emit('user_status', {'is_muted': is_muted, 'is_media_muted': is_media_muted}, room=sid)
 
 @socketio.on("disconnect")
 def handle_disconnect():
@@ -601,6 +602,11 @@ def handle_chat_message(data):
         globals.users_with_sid[nickname] = request.sid
         globals.users_with_IP[nickname] = get_real_ip(request)
 
+    # Server-side enforcement: Check if user is muted
+    if nickname in globals.muted_users:
+        print(f"Blocked message from muted user: {nickname}")
+        return
+
     # print(f"Received message: {message} from {nickname} at {timestamp}")
     if message == "/clear":
         socketio.emit('clear_chat', room=request.sid)
@@ -649,12 +655,23 @@ def handle_image_chunk(data):
         disconnect()
         return
 
+    nickname = session.get('nickname')
+    
+    # Server-side enforcement: Check if user is media-muted
+    if nickname in globals.media_muted_users:
+        print(f"Blocked image upload from media-muted user: {nickname}")
+        # Clear any buffered chunks for this upload
+        temp_id = data.get('id')
+        if temp_id in _image_buffers:
+            _image_buffers.pop(temp_id)
+        return
+
     temp_id = data['id']
     chunk = data['chunk']
     _image_buffers[temp_id].append(chunk)
 
     if data['is_last']:
-        data['metadata']['nickname'] = session.get('nickname')
+        data['metadata']['nickname'] = nickname
         socketio.start_background_task(
             assemble_and_emit_image, temp_id, data['metadata']
         )
@@ -1030,6 +1047,43 @@ def unmute_users():
             print(f"Sent force_unmute command to {user} (SID: {sid_to_kick}).")
         
     return jsonify({"message": f"Successfully sent unmute command"}), 200
+
+@app.route("/admin/mute-media", methods=['POST'])
+@admin_required
+def mute_media_users():
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+
+    users_to_mute = data['users']
+
+    for user in users_to_mute:
+        sid_to_mute = globals.users_with_sid.get(user)
+        if sid_to_mute:
+            globals.media_muted_users.add(user)
+            socketio.emit('force_media_mute', {}, room=sid_to_mute)            
+            print(f"Sent force_media_mute command to {user} (SID: {sid_to_mute}).")
+        
+    return jsonify({"message": f"Successfully sent media mute command"}), 200
+
+@app.route("/admin/unmute-media", methods=['POST'])
+@admin_required
+def unmute_media_users():
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+
+    users_to_unmute = data['users']
+
+    for user in users_to_unmute:
+        sid_to_unmute = globals.users_with_sid.get(user)
+        if sid_to_unmute:
+            if user in globals.media_muted_users:
+                globals.media_muted_users.remove(user)
+            socketio.emit('force_media_unmute', {}, room=sid_to_unmute)            
+            print(f"Sent force_media_unmute command to {user} (SID: {sid_to_unmute}).")
+        
+    return jsonify({"message": f"Successfully sent media unmute command"}), 200
 
 
 @app.route("/admin/ban", methods=['POST'])

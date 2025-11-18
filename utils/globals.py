@@ -18,6 +18,7 @@ users_to_crash = set()
 
 kicked_users = set()
 muted_users = set()
+media_muted_users = set()
 
 banned_ips_cache = {}
 
