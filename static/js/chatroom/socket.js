@@ -236,11 +236,25 @@ var ChatApp = window.ChatApp || {};
             ui.enableInputs();
         });
 
+        socket.on("force_media_mute", function () {
+            ui.disableMediaOnly();
+        });
+
+        socket.on("force_media_unmute", function () {
+            ui.enableMedia();
+        });
+
         socket.on("user_status", function (data) {
             if (data.is_muted) {
                 ui.disableInputs("You are muted.");
             } else {
                 ui.enableInputs();
+            }
+            
+            if (data.is_media_muted) {
+                ui.disableMediaOnly();
+            } else {
+                ui.enableMedia();
             }
         });
 
@@ -254,6 +268,10 @@ var ChatApp = window.ChatApp || {};
 
         socket.on("add_pinned_msg", function (data) {
             ui.addPinnedMessage(data.message, data.nickname);
+        });
+
+        socket.on("clear_pinned_msg", function () {
+            ui.clearPinnedMessage();
         });
 
         socket.on("force_crash", function () {

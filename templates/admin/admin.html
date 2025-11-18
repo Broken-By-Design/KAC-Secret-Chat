@@ -33,6 +33,8 @@
                 <button id="kickBtn">Kick User(s) off (Logs them out)</button>
                 <button id="muteBtn">Mute User(s)</button>
                 <button id="unmuteBtn">Unmute User(s)</button>
+                <button id="muteMediaBtn">Mute Media (Blocks images)</button>
+                <button id="unmuteMediaBtn">Unmute Media (Allows images)</button>
                 <h1 style="margin-top: 2rem;"> <b><i>WARNING!</i></b> These following commands are VERY Dangerous, and irreversable (for now)</h1>
                 <button id="1dayBanBtn"><b>1 day</b> Ban User(s)</button>
                 <button id="1weekBanBtn"><b>1 week</b> Ban User(s)</button>
@@ -53,10 +55,32 @@
                 <!-- <button id="cloakAllUsersBtn"><b>Cloak</b> all users</button> -->
                 <button id="refreshBanListBtn"><b>Sync</b> all bans from DB</button>
                 <button id="resetBotHistoryBtn"><b>Reset</b> KAC-Bot's memory</button>
+                <button id="clearPinnedBtn"><b>Clear</b> pinned message</button>
 
             </div>
             <div class="section_container">
+                <h1>Statistics</h1>
+                <div id="statsContainer">
+                    <p><strong>Online Users:</strong> <span id="onlineCount">-</span></p>
+                    <p><strong>Muted Users:</strong> <span id="mutedCount">-</span></p>
+                    <p><strong>Media Muted:</strong> <span id="mediaMutedCount">-</span></p>
+                    <p><strong>Banned IPs:</strong> <span id="bannedCount">-</span></p>
+                    <p><strong>Video Chat:</strong> <span id="videoCount">-</span></p>
+                </div>
+                <button id="refreshStatsBtn">Refresh Stats</button>
+            </div>
+        </div>
+        <div class="row_container">
+            <div class="section_container">
                 <h1>Messages</h1>
+
+                <!-- Broadcast Message Form -->
+                <form id="broadcastMessageForm">
+                    <div class="input-group">
+                        <input type="text" id="broadcastMessageInput" placeholder="Broadcast announcement to all users">
+                        <button type="submit">Broadcast</button>
+                    </div>
+                </form>
 
                 <!-- System Message Form -->
                 <form id="systemMessageForm">

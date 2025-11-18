@@ -337,6 +337,14 @@ var ChatApp = window.ChatApp || {};
         document.body.style.paddingTop = `${pinnedMessageContainer.offsetHeight}px`;
     }
 
+    function clearPinnedMessage() {
+        const existingPinned = document.getElementById("pinned-message");
+        if (existingPinned) {
+            existingPinned.remove();
+            document.body.style.paddingTop = "0";
+        }
+    }
+
     function enableInputs() {
         document.getElementById("input").disabled = false;
         document.getElementById("input").placeholder = "Type Here";
@@ -349,6 +357,16 @@ var ChatApp = window.ChatApp || {};
         document.getElementById("input").placeholder = text;
         document.querySelector('button[type="submit"]').disabled = true;
         document.getElementById("openFile").disabled = true;
+    }
+
+    function disableMediaOnly() {
+        document.getElementById("openFile").disabled = true;
+        document.getElementById("openFile").title = "Media uploads are disabled for you";
+    }
+
+    function enableMedia() {
+        document.getElementById("openFile").disabled = false;
+        document.getElementById("openFile").title = "";
     }
 
 
@@ -416,9 +434,12 @@ var ChatApp = window.ChatApp || {};
         addUserConnectedMessage: addUserConnectedMessage,
         addSystemMessageNoUser: addSystemMessageNoUser,
         addPinnedMessage: addPinnedMessage,
+        clearPinnedMessage: clearPinnedMessage,
         showBannedMessage: showBannedMessage,
         enableInputs: enableInputs,
         disableInputs: disableInputs,
+        disableMediaOnly: disableMediaOnly,
+        enableMedia: enableMedia,
         openImageOptions: openImageOptions,
         closeImageOptions: closeImageOptions,
         updateTypingIndicator: updateTypingIndicator,

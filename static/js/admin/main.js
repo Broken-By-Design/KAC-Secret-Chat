@@ -17,6 +17,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const kickBtn = document.getElementById("kickBtn");
     const muteBtn = document.getElementById("muteBtn");
     const unmuteBtn = document.getElementById("unmuteBtn");
+    const muteMediaBtn = document.getElementById("muteMediaBtn");
+    const unmuteMediaBtn = document.getElementById("unmuteMediaBtn");
 
 
     // Message elements
@@ -29,6 +31,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const cloakAllUsersBtn = document.getElementById("cloakAllUsersBtn");
     const refreshBanListBtn = document.getElementById("refreshBanListBtn");
     const resetBotHistoryBtn = document.getElementById("resetBotHistoryBtn");
+    const clearPinnedBtn = document.getElementById("clearPinnedBtn");
+    const refreshStatsBtn = document.getElementById("refreshStatsBtn");
 
     // Troll Commands
     const jumpscareBtn = document.getElementById("jumpscareBtn");
@@ -37,9 +41,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // Message-based ones
     const pinnedMessageForm = document.getElementById("pinnedMessageForm");
     const systemMessageForm = document.getElementById("systemMessageForm");
+    const broadcastMessageForm = document.getElementById("broadcastMessageForm");
     const userMessageForm = document.getElementById("userMessageForm");
 
     const pinnedMessageInput = document.getElementById("pinnedMessageInput");
+    const broadcastMessageInput = document.getElementById("broadcastMessageInput");
 
     const systemMessageInput = document.getElementById("systemMessageInput");
     const userMessageNameInput = document.getElementById(
@@ -80,6 +86,24 @@ document.addEventListener("DOMContentLoaded", function () {
         } catch (error) {
             console.error("Failed to fetch users:", error);
             usersListElement.innerHTML = "<li>Failed to load users.</li>";
+        }
+    };
+
+    // Function to fetch and display stats
+    const fetchAndDisplayStats = async () => {
+        try {
+            const response = await fetch("/admin/stats");
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
+            }
+            const stats = await response.json();
+            document.getElementById("onlineCount").textContent = stats.online_users;
+            document.getElementById("mutedCount").textContent = stats.muted_users;
+            document.getElementById("mediaMutedCount").textContent = stats.media_muted_users;
+            document.getElementById("bannedCount").textContent = stats.banned_ips;
+            document.getElementById("videoCount").textContent = stats.video_chat_users;
+        } catch (error) {
+            console.error("Failed to fetch stats:", error);
         }
     };
 
@@ -203,6 +227,20 @@ document.addEventListener("DOMContentLoaded", function () {
         performActionNoUser("system-message", { message: message });
     });
 
+    broadcastMessageForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const message = broadcastMessageInput.value;
+
+        if (!message.trim()) {
+            showMessage(failMessage, "Broadcast message cannot be empty.");
+            return;
+        }
+
+        performActionNoUser("broadcast", { message: message });
+        broadcastMessageInput.value = ""; // Clear the input after sending
+    });
+
     userMessageForm.addEventListener("submit", async function (event) {
         // 1. Prevent the default form submission
         event.preventDefault();
@@ -244,6 +282,8 @@ document.addEventListener("DOMContentLoaded", function () {
     kickBtn.addEventListener("click", () => performAction("kick"));
     muteBtn.addEventListener("click", () => performAction("mute"));
     unmuteBtn.addEventListener("click", () => performAction("unmute"));
+    muteMediaBtn.addEventListener("click", () => performAction("mute-media"));
+    unmuteMediaBtn.addEventListener("click", () => performAction("unmute-media"));
 
     document.getElementById("1dayBanBtn").addEventListener("click", () => {
         if (
@@ -300,6 +340,13 @@ document.addEventListener("DOMContentLoaded", function () {
         performActionNoUser("reset-bot-memory");
     });
 
+    clearPinnedBtn.addEventListener("click", () =>
+        performActionNoUser("clear-pinned-message")
+    );
+
+    refreshStatsBtn.addEventListener("click", fetchAndDisplayStats);
+
     // Initial load
     fetchAndRenderUsers();
+    fetchAndDisplayStats();
 });
