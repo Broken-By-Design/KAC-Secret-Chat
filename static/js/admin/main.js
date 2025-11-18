@@ -41,9 +41,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // Message-based ones
     const pinnedMessageForm = document.getElementById("pinnedMessageForm");
     const systemMessageForm = document.getElementById("systemMessageForm");
+    const broadcastMessageForm = document.getElementById("broadcastMessageForm");
     const userMessageForm = document.getElementById("userMessageForm");
 
     const pinnedMessageInput = document.getElementById("pinnedMessageInput");
+    const broadcastMessageInput = document.getElementById("broadcastMessageInput");
 
     const systemMessageInput = document.getElementById("systemMessageInput");
     const userMessageNameInput = document.getElementById(
@@ -223,6 +225,20 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         performActionNoUser("system-message", { message: message });
+    });
+
+    broadcastMessageForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const message = broadcastMessageInput.value;
+
+        if (!message.trim()) {
+            showMessage(failMessage, "Broadcast message cannot be empty.");
+            return;
+        }
+
+        performActionNoUser("broadcast", { message: message });
+        broadcastMessageInput.value = ""; // Clear the input after sending
     });
 
     userMessageForm.addEventListener("submit", async function (event) {

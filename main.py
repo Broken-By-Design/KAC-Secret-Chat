@@ -1239,6 +1239,25 @@ def send_message_admin():
         #add_chatlog_entry(message, "KAC-Bot", timestamp, globals.current_log_file, type="system" if is_system else "text")
     return jsonify({"message": "Message sent to chat."}), 200
 
+@app.route("/admin/broadcast", methods=["POST"])
+@admin_required
+def broadcast_message():
+    """Send a highlighted announcement message to all users."""
+    data = request.get_json()
+    if not data or 'message' not in data:
+        return jsonify({"message": "Invalid request. 'message' key is missing."}), 400
+    
+    message = data['message']
+    timestamp = datetime.datetime.now().isoformat()
+    socketio.emit('chat_message', { 
+        'message': message, 
+        'nickname': "📢 ADMIN", 
+        'timestamp': timestamp, 
+        'highlight': True 
+    })
+    add_chatlog_entry(message, "📢 ADMIN", timestamp, globals.current_log_file, type="highlight")
+    return jsonify({"message": "Broadcast sent to all users."}), 200
+
 @app.route("/admin/update-bans", methods=["POST"])
 @admin_required
 def update_bans():
