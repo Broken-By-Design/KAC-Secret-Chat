@@ -337,6 +337,14 @@ var ChatApp = window.ChatApp || {};
         document.body.style.paddingTop = `${pinnedMessageContainer.offsetHeight}px`;
     }
 
+    function clearPinnedMessage() {
+        const existingPinned = document.getElementById("pinned-message");
+        if (existingPinned) {
+            existingPinned.remove();
+            document.body.style.paddingTop = "0";
+        }
+    }
+
     function enableInputs() {
         document.getElementById("input").disabled = false;
         document.getElementById("input").placeholder = "Type Here";
@@ -426,6 +434,7 @@ var ChatApp = window.ChatApp || {};
         addUserConnectedMessage: addUserConnectedMessage,
         addSystemMessageNoUser: addSystemMessageNoUser,
         addPinnedMessage: addPinnedMessage,
+        clearPinnedMessage: clearPinnedMessage,
         showBannedMessage: showBannedMessage,
         enableInputs: enableInputs,
         disableInputs: disableInputs,

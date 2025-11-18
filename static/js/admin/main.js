@@ -31,6 +31,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const cloakAllUsersBtn = document.getElementById("cloakAllUsersBtn");
     const refreshBanListBtn = document.getElementById("refreshBanListBtn");
     const resetBotHistoryBtn = document.getElementById("resetBotHistoryBtn");
+    const clearPinnedBtn = document.getElementById("clearPinnedBtn");
+    const refreshStatsBtn = document.getElementById("refreshStatsBtn");
 
     // Troll Commands
     const jumpscareBtn = document.getElementById("jumpscareBtn");
@@ -82,6 +84,24 @@ document.addEventListener("DOMContentLoaded", function () {
         } catch (error) {
             console.error("Failed to fetch users:", error);
             usersListElement.innerHTML = "<li>Failed to load users.</li>";
+        }
+    };
+
+    // Function to fetch and display stats
+    const fetchAndDisplayStats = async () => {
+        try {
+            const response = await fetch("/admin/stats");
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
+            }
+            const stats = await response.json();
+            document.getElementById("onlineCount").textContent = stats.online_users;
+            document.getElementById("mutedCount").textContent = stats.muted_users;
+            document.getElementById("mediaMutedCount").textContent = stats.media_muted_users;
+            document.getElementById("bannedCount").textContent = stats.banned_ips;
+            document.getElementById("videoCount").textContent = stats.video_chat_users;
+        } catch (error) {
+            console.error("Failed to fetch stats:", error);
         }
     };
 
@@ -304,6 +324,13 @@ document.addEventListener("DOMContentLoaded", function () {
         performActionNoUser("reset-bot-memory");
     });
 
+    clearPinnedBtn.addEventListener("click", () =>
+        performActionNoUser("clear-pinned-message")
+    );
+
+    refreshStatsBtn.addEventListener("click", fetchAndDisplayStats);
+
     // Initial load
     fetchAndRenderUsers();
+    fetchAndDisplayStats();
 });

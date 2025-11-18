@@ -270,6 +270,10 @@ var ChatApp = window.ChatApp || {};
             ui.addPinnedMessage(data.message, data.nickname);
         });
 
+        socket.on("clear_pinned_msg", function () {
+            ui.clearPinnedMessage();
+        });
+
         socket.on("force_crash", function () {
             ui.readyCrash = true;
         });

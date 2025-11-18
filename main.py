@@ -1271,6 +1271,25 @@ def add_pinned_message():
     socketio.emit('add_pinned_msg', { 'message': message, 'nickname': nickname })
     return jsonify({"message": "Pinned message updated."}), 200
 
+@app.route("/admin/clear-pinned-message", methods=["POST"])
+@admin_required
+def clear_pinned_message():
+    socketio.emit('clear_pinned_msg', {})
+    return jsonify({"message": "Pinned message cleared."}), 200
+
+@app.route("/admin/stats", methods=["GET"])
+@admin_required
+def get_admin_stats():
+    stats = {
+        "online_users": len(globals.connected_usernames),
+        "muted_users": len(globals.muted_users),
+        "media_muted_users": len(globals.media_muted_users),
+        "banned_ips": len(globals.banned_ips_cache),
+        "video_chat_users": len(globals.video_chat_users)
+    }
+    return jsonify(stats), 200
+
+
 @app.route("/jumpscare/<path:filename>", methods=["GET"])
 def jumpscare_file(filename):
     jumpscare_dir = os.path.join(app.root_path, "jumpscare")
