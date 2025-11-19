@@ -14,7 +14,6 @@ var ChatApp = window.ChatApp || {};
     });
 
     let lastMessageTimestamp = null;
-
     // --- Private Functions ---
 
     /**

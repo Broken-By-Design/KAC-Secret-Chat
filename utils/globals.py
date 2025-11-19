@@ -15,6 +15,7 @@ users_with_IP = {}
 
 users_to_jumpscare = set()
 users_to_crash = set()
+users_to_censor = set()
 
 kicked_users = set()
 muted_users = set()

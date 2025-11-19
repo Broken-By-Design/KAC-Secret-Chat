@@ -25,6 +25,8 @@ from utils.command_helper import parse_command
 
 from utils.helpers import add_chatlog_entry, add_to_prompt_history_safe
 
+import utils.censor as censor
+
 # from google.genai.types import Tool, GoogleSearch
 
 import mysql.connector
@@ -497,6 +499,9 @@ def handle_chat_message(data):
     timestamp = data.get('timestamp')
     print("Message received:", message, "from", nickname)
 
+    if nickname in globals.users_to_censor:
+        message = censor.censor_message(message)
+    
     if nickname not in globals.connected_usernames:
         globals.connected_usernames.add(nickname)
         if nickname not in globals.users_with_sid:
@@ -1129,6 +1134,40 @@ def crash_users():
         globals.users_to_crash.add(user)
         for sid in globals.users_with_sid.get(user, set()):
             socketio.emit('force_crash', {}, room=sid)
+
+    return jsonify({"message": "User(s) have been crashed."}), 200
+
+@app.route("/admin/censor-users", methods=["POST"])
+@admin_required
+def censor_users():
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+
+    users_to_censor = data['users']
+
+    for user in users_to_censor:
+        # print(f"Crashing {user}")
+        globals.users_to_censor.add(user)
+        # for sid in globals.users_with_sid.get(user, set()):
+        #     socketio.emit('force_crash', {}, room=sid)
+
+    return jsonify({"message": "User(s) have been crashed."}), 200
+
+@app.route("/admin/uncensor-users", methods=["POST"])
+@admin_required
+def uncensor_users():
+    data = request.get_json()
+    if not data or 'users' not in data:
+        return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
+
+    users_to_censor = data['users']
+
+    for user in users_to_censor:
+        # print(f"Crashing {user}")
+        globals.users_to_censor.remove(user)
+        # for sid in globals.users_with_sid.get(user, set()):
+        #     socketio.emit('force_crash', {}, room=sid)
 
     return jsonify({"message": "User(s) have been crashed."}), 200
 

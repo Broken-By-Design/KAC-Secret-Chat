@@ -32,6 +32,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // Troll Commands
     const jumpscareBtn = document.getElementById("jumpscareBtn");
     const crashBtn = document.getElementById("crashBtn");
+    const censorBtn = document.getElementById("censorBtn");
+    const uncensorBtn = document.getElementById("uncensorBtn");
+
+
 
     // Message-based ones
     const pinnedMessageForm = document.getElementById("pinnedMessageForm");
@@ -277,6 +281,10 @@ document.addEventListener("DOMContentLoaded", function () {
     jumpscareBtn.addEventListener("click", () => performAction("jumpscare"));
 
     crashBtn.addEventListener("click", () => performAction("crash-users"));
+
+    censorBtn.addEventListener("click", () => performAction("censor-users"));
+    uncensorBtn.addEventListener("click", () => performAction("uncensor-users"));
+
 
     // Global
     resetChatBtn.addEventListener("click", () =>
