@@ -338,7 +338,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-    window.addEventListener("beforeunload", () => {
-        socket.disconnect();
-    });
+    // window.addEventListener("beforeunload", () => {
+    //     socket.disconnect();
+    // });
 });

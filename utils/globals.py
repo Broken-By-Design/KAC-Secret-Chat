@@ -9,7 +9,7 @@ typing_users = set()
 
 ai_prompt_history = []
 
-users_with_sid = {}
+users_with_sid = {} # dict[str, set[str]]
 
 users_with_IP = {}
 

@@ -303,4 +303,8 @@ document.addEventListener("DOMContentLoaded", function () {
         ui.updateTitle();
         ui.scrollToBottom();
     });
+
+    window.addEventListener("beforeunload", () => {
+        socket.disconnect();
+    });
 });
