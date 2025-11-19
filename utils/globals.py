@@ -9,7 +9,7 @@ typing_users = set()
 
 ai_prompt_history = []
 
-users_with_sid = {}
+users_with_sid = {}  # Maps username -> set of SIDs (socket IDs) for multi-tab support
 
 users_with_IP = {}
 
