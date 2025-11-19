@@ -333,7 +333,10 @@ def handle_connect():
 
     if nickname:
         globals.connected_usernames.add(nickname)
-        globals.users_with_sid[nickname] = sid
+        # Support multiple SIDs per user (multiple tabs)
+        if nickname not in globals.users_with_sid:
+            globals.users_with_sid[nickname] = set()
+        globals.users_with_sid[nickname].add(sid)
         globals.users_with_IP[nickname] = user_ip
 
         if nickname in globals.users_to_jumpscare:
@@ -368,23 +371,31 @@ def handle_disconnect():
             socketio.emit('screen_sharing_stopped', {'sid': sid})
         socketio.emit('user_left_lounge', sid)
 
-    for nickname, sid in globals.users_with_sid.items():
-        if sid == request.sid:
+    # Find the nickname associated with this SID
+    for nickname, sids in globals.users_with_sid.items():
+        if sid in sids:
             nickname_to_remove = nickname
             break
 
     if nickname_to_remove:
-        print(f"User disconnected: {nickname_to_remove}")
+        print(f"User disconnected: {nickname_to_remove} (SID: {sid})")
 
-        if nickname_to_remove in globals.typing_users:
-            globals.typing_users.remove(nickname_to_remove)
-            socketio.emit('typing_update', {'users': list(globals.typing_users)})
+        # Remove this specific SID from the user's SID set
+        if nickname_to_remove in globals.users_with_sid:
+            globals.users_with_sid[nickname_to_remove].discard(sid)
             
-        if nickname_to_remove in globals.connected_usernames:
-            globals.connected_usernames.remove(nickname_to_remove)
+            # Only fully remove the user if they have no more active connections
+            if not globals.users_with_sid[nickname_to_remove]:
+                del globals.users_with_sid[nickname_to_remove]
+                
+                if nickname_to_remove in globals.typing_users:
+                    globals.typing_users.remove(nickname_to_remove)
+                    socketio.emit('typing_update', {'users': list(globals.typing_users)})
+                    
+                if nickname_to_remove in globals.connected_usernames:
+                    globals.connected_usernames.remove(nickname_to_remove)
 
-        globals.users_with_sid.pop(nickname_to_remove, None)
-        globals.users_with_IP.pop(nickname_to_remove, None)
+                globals.users_with_IP.pop(nickname_to_remove, None)
 
 
 @socketio.on("user_jumpscared")
@@ -464,8 +475,8 @@ def handle_private_message(data):
     
     add_chatlog_entry(message, sender, timestamp, globals.current_log_file, type="dm", recipient=recipient)
     
-    sender_sid = globals.users_with_sid.get(sender)
-    recipient_sid = globals.users_with_sid.get(recipient)
+    sender_sids = globals.users_with_sid.get(sender, set())
+    recipient_sids = globals.users_with_sid.get(recipient, set())
     dm_payload = {
         'message': message,
         'from': sender,
@@ -473,10 +484,12 @@ def handle_private_message(data):
         'timestamp': timestamp
     }
     
-    if recipient_sid:
+    # Send to all recipient's tabs
+    for recipient_sid in recipient_sids:
         socketio.emit('private_message', dm_payload, room=recipient_sid)
     
-    if sender_sid:
+    # Send to all sender's tabs (for confirmation)
+    for sender_sid in sender_sids:
         socketio.emit('private_message', dm_payload, room=sender_sid)
 
 @socketio.on("chat_message")
@@ -488,7 +501,9 @@ def handle_chat_message(data):
 
     if nickname not in globals.connected_usernames:
         globals.connected_usernames.add(nickname)
-        globals.users_with_sid[nickname] = request.sid
+        if nickname not in globals.users_with_sid:
+            globals.users_with_sid[nickname] = set()
+        globals.users_with_sid[nickname].add(request.sid)
         globals.users_with_IP[nickname] = get_real_ip(request)
 
     if message == "/clear":
@@ -853,13 +868,15 @@ def kick_users():
     print(f"--- KICK ACTION: Received request to log out {', '.join(users_to_kick)} ---")
 
     for user in users_to_kick:
-        sid_to_kick = globals.users_with_sid.get(user)
-        if sid_to_kick:
+        sids_to_kick = globals.users_with_sid.get(user, set())
+        if sids_to_kick:
             globals.kicked_users.add(user)
 
-            socketio.emit('force_logout', {}, room=sid_to_kick)            
-            print(f"Sent force_logout command to {user} (SID: {sid_to_kick}).")
-            disconnect(sid_to_kick, namespace='/')
+            # Kick all tabs/connections for this user
+            for sid_to_kick in sids_to_kick:
+                socketio.emit('force_logout', {}, room=sid_to_kick)            
+                print(f"Sent force_logout command to {user} (SID: {sid_to_kick}).")
+                disconnect(sid_to_kick, namespace='/')
             
             kicked_count += 1
 
@@ -878,12 +895,14 @@ def mute_users():
     users_to_kick = data['users']
 
     for user in users_to_kick:
-        sid_to_kick = globals.users_with_sid.get(user)
-        if sid_to_kick:
+        sids_to_mute = globals.users_with_sid.get(user, set())
+        if sids_to_mute:
             globals.muted_users.add(user)
 
-            socketio.emit('force_mute', {}, room=sid_to_kick)            
-            print(f"Sent force_mute command to {user} (SID: {sid_to_kick}).")
+            # Mute all tabs/connections for this user
+            for sid_to_kick in sids_to_mute:
+                socketio.emit('force_mute', {}, room=sid_to_kick)            
+                print(f"Sent force_mute command to {user} (SID: {sid_to_kick}).")
         
     return jsonify({"message": f"Successfully sent mute command"}), 200
 
@@ -897,12 +916,14 @@ def unmute_users():
     users_to_kick = data['users']
 
     for user in users_to_kick:
-        sid_to_kick = globals.users_with_sid.get(user)
-        if sid_to_kick:
+        sids_to_unmute = globals.users_with_sid.get(user, set())
+        if sids_to_unmute:
             globals.muted_users.remove(user)
 
-            socketio.emit('force_unmute', {}, room=sid_to_kick)            
-            print(f"Sent force_unmute command to {user} (SID: {sid_to_kick}).")
+            # Unmute all tabs/connections for this user
+            for sid_to_kick in sids_to_unmute:
+                socketio.emit('force_unmute', {}, room=sid_to_kick)            
+                print(f"Sent force_unmute command to {user} (SID: {sid_to_kick}).")
         
     return jsonify({"message": f"Successfully sent unmute command"}), 200
 
@@ -965,12 +986,14 @@ def ip_ban_users():
     banned_users = {user for user, _ in users_with_ips}
     for user, user_ip in list(globals.users_with_IP.items()):
         if user in banned_users:
-            sid_to_kick = globals.users_with_sid.get(user)
-            if sid_to_kick:
+            sids_to_kick = globals.users_with_sid.get(user, set())
+            if sids_to_kick:
                 globals.kicked_users.add(user)
-                socketio.emit('force_logout', {}, room=sid_to_kick)
-                print(f"Sent force_logout command to {user} (SID: {sid_to_kick}).")
-                disconnect(sid_to_kick, namespace='/')
+                # Kick all tabs/connections for this user
+                for sid_to_kick in sids_to_kick:
+                    socketio.emit('force_logout', {}, room=sid_to_kick)
+                    print(f"Sent force_logout command to {user} (SID: {sid_to_kick}).")
+                    disconnect(sid_to_kick, namespace='/')
     
     return jsonify({"message": f"Successfully banned and kicked users from IPs: {', '.join(ips_to_ban)}"}), 200
 
@@ -1027,7 +1050,10 @@ def jumpscare():
     
     for user in users_for_jumpscare:
         globals.users_to_jumpscare.add(user)
-        socketio.emit('force_jumpscare', {}, room=globals.users_with_sid.get(user))
+        # Jumpscare all tabs/connections for this user
+        sids_to_jumpscare = globals.users_with_sid.get(user, set())
+        for sid in sids_to_jumpscare:
+            socketio.emit('force_jumpscare', {}, room=sid)
     return jsonify({"message": "User(s) have been jumpscared."}), 200
 
 
@@ -1110,7 +1136,10 @@ def crash_users():
     for user in users_to_crash:
         # print(f"Crashing {user}")
         globals.users_to_crash.add(user)
-        socketio.emit('force_crash', {}, room=globals.users_with_sid.get(user))
+        # Crash all tabs/connections for this user
+        sids_to_crash = globals.users_with_sid.get(user, set())
+        for sid in sids_to_crash:
+            socketio.emit('force_crash', {}, room=sid)
 
     return jsonify({"message": "User(s) have been crashed."}), 200
 
