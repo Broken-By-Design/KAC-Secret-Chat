@@ -131,7 +131,7 @@ def censor_message(message: str, censor_list: list[str] = None, min_similarity: 
                     # Preserve case pattern of original word
                     censored = ''
                     for i, char in enumerate(word):
-                        if i == 0 or i == len(word) - 1:
+                        if i == 0:# or i == len(word) - 1:
                             censored += char
                         else:
                             censored += CENSOR_CHAR
