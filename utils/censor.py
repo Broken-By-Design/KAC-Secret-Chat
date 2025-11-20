@@ -6,6 +6,8 @@ from difflib import SequenceMatcher
 with open("badwords.txt", "r", encoding="utf-8") as f:
     CENSOR_WORDS = [f.strip().lower() for f in f.readlines() if f.strip()]
 
+CENSOR_CHAR = '#'
+
 def normalize_char(char: str) -> str:
     """
     Normalize a character by handling homoglyphs and character substitutions.
@@ -125,14 +127,14 @@ def censor_message(message: str, censor_list: list[str] = None, min_similarity: 
                 def replace_with_censors(match):
                     word = match.group(0)
                     if len(word) <= 2:
-                        return '*' * len(word)
+                        return CENSOR_CHAR * len(word)
                     # Preserve case pattern of original word
                     censored = ''
                     for i, char in enumerate(word):
                         if i == 0 or i == len(word) - 1:
                             censored += char
                         else:
-                            censored += '*'
+                            censored += CENSOR_CHAR
                     return censored
                 
                 message = re.sub(pattern, replace_with_censors, message, flags=re.IGNORECASE)
