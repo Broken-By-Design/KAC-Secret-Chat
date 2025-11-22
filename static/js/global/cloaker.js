@@ -99,6 +99,7 @@ function openGame(uri) {
             iframe.style.margin = "0";
             iframe.style.border = iframe.style.outline = "none";
             iframe.src = `https://${location.hostname}/${uri}`;
+            iframe.allow = "microphone; camera; fullscreen; autoplay; display-capture";
             popup.document.body.appendChild(iframe);
         }
     }
@@ -136,6 +137,7 @@ function customCloak(icon, title) {
             iframe.style.margin = "0";
             iframe.style.border = iframe.style.outline = "none";
             iframe.src = location.href;
+            iframe.allow = "microphone; camera; fullscreen; autoplay; display-capture";
             popup.document.body.appendChild(iframe);
             location.replace("https://www.google.com");
         }
@@ -169,6 +171,7 @@ function cloakURI(uri) {
             iframe.style.margin = "0";
             iframe.style.border = iframe.style.outline = "none";
             iframe.src = `https://${location.hostname}/${uri}`;
+            iframe.allow = "microphone; camera; fullscreen; autoplay; display-capture";
             popup.document.body.appendChild(iframe);
         }
     }
@@ -205,6 +208,7 @@ function cloakURL(url) {
             } else {
                 iframe.src = `https://${url}`;
             }
+            iframe.allow = "microphone; camera; fullscreen; autoplay; display-capture";
             popup.document.body.appendChild(iframe);
         }
     }
