@@ -332,9 +332,19 @@ var ChatApp = window.ChatApp || {};
             imagePreview.style.display = "none";
         }
         
-        botCheckbox.checked = false;
-        botQuestion.value = "";
-        botQuestion.style.display = "none";
+        // Only allow bot questions for images
+        if (isImage) {
+            botCheckbox.checked = false;
+            botQuestion.value = "";
+            botQuestion.style.display = "none";
+            botCheckbox.disabled = false;
+            botCheckbox.parentElement.style.display = "block";
+        } else {
+            botCheckbox.checked = false;
+            botCheckbox.disabled = true;
+            botQuestion.style.display = "none";
+            botCheckbox.parentElement.style.display = "none";
+        }
 
         // Stash the file on the DOM element for later retrieval
         imageOption._file = file;

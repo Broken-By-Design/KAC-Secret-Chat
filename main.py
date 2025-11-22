@@ -699,8 +699,8 @@ def assemble_and_emit_image(temp_id, metadata):
 
     add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], globals.current_log_file, type="image", file_type=mime_type, file_name=file_name)
     
-    # Only allow bot questions for images
-    if metadata["question"] and mime_type.startswith('image/'):
+    # Only allow bot questions for images with non-empty questions
+    if metadata["question"] and metadata["question"].strip() and mime_type.startswith('image/'):
         socketio.emit('chat_message', { 'message': "!bot "+metadata["question"], 'nickname': metadata['nickname'], 'timestamp': metadata['timestamp'] })
         add_chatlog_entry("!bot "+metadata["question"], metadata['nickname'], metadata['timestamp'], globals.current_log_file, type="text")
         response = generate_response(metadata["question"], user=metadata['nickname'], image=True, image_id=final_id)

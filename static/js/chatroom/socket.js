@@ -49,7 +49,6 @@ var ChatApp = window.ChatApp || {};
      */
     async function compressAndSendImage(
         file,
-        //nickname,
         timestamp,
         question = null
     ) {
@@ -59,7 +58,6 @@ var ChatApp = window.ChatApp || {};
             return chunkAndEmit(
                 buffer,
                 file.name,
-                //nickname,
                 timestamp,
                 question
             );
@@ -71,7 +69,6 @@ var ChatApp = window.ChatApp || {};
             return chunkAndEmit(
                 buffer,
                 file.name,
-                //nickname,
                 timestamp,
                 question
             );
