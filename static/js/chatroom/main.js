@@ -47,56 +47,73 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
 
                 if (entry.type === "image") {
-                    const item = document.createElement("li");
-                    const anchor = document.createElement("a");
-                    const img = document.createElement("img");
-
-                    const imageUri = `/get_image/${entry.id}`;
-                    anchor.href = imageUri;
-
-                    if (inDangerMode === true && testingMode === true) {
-                        // In Danger Mode, we want to cloak the URL on click.
-                        anchor.addEventListener("click", function (event) {
-                            // Prevent the browser from following the link normally.
-                            event.preventDefault();
-
-                            // Call the cloakURL function with the image's URL.
-                            if (typeof cloakURL === "function") {
-                                cloakURL(imageUri);
-                            } else {
-                                console.error(
-                                    "Error: cloakURL() is not defined."
-                                );
-                            }
+                    // Check if this is a file with type info or legacy image
+                    if (entry.fileType) {
+                        // Use the new addFileMessage for files with type info
+                        const p = new Promise((resolve) => {
+                            ui.addFileMessage(
+                                entry.id,
+                                entry.nickname,
+                                entry.timestamp,
+                                entry.fileType,
+                                entry.fileName
+                            );
+                            requestAnimationFrame(resolve);
                         });
+                        renderComplete.push(p);
                     } else {
-                        // In normal mode, the link should open in a new, uncloaked tab.
-                        anchor.target = "_blank";
-                        anchor.rel = "noopener noreferrer";
+                        // Legacy image handling
+                        const item = document.createElement("li");
+                        const anchor = document.createElement("a");
+                        const img = document.createElement("img");
+
+                        const imageUri = `/get_image/${entry.id}`;
+                        anchor.href = imageUri;
+
+                        if (inDangerMode === true && testingMode === true) {
+                            // In Danger Mode, we want to cloak the URL on click.
+                            anchor.addEventListener("click", function (event) {
+                                // Prevent the browser from following the link normally.
+                                event.preventDefault();
+
+                                // Call the cloakURL function with the image's URL.
+                                if (typeof cloakURL === "function") {
+                                    cloakURL(imageUri);
+                                } else {
+                                    console.error(
+                                        "Error: cloakURL() is not defined."
+                                    );
+                                }
+                            });
+                        } else {
+                            // In normal mode, the link should open in a new, uncloaked tab.
+                            anchor.target = "_blank";
+                            anchor.rel = "noopener noreferrer";
+                        }
+
+                        // img.loading = "lazy";
+                        img.id = entry.id;
+                        img.src = imageUri;
+
+                        const imageLoad = new Promise((resolve) => {
+                            // img.onload = resolve;
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                        });
+
+                        anchor.appendChild(img);
+
+                        item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
+                            entry.nickname
+                        )}: </b>`;
+                        item.appendChild(anchor);
+                        item.innerHTML += ` <span id="timestamp">${utils.formatTime(
+                            entry.timestamp
+                        )}</span>`;
+
+                        messages.appendChild(item);
+                        renderComplete.push(imageLoad);
                     }
-
-                    // img.loading = "lazy";
-                    img.id = entry.id;
-                    img.src = imageUri;
-
-                    const imageLoad = new Promise((resolve) => {
-                        // img.onload = resolve;
-                        img.onload = resolve;
-                        img.onerror = resolve;
-                    });
-
-                    anchor.appendChild(img);
-
-                    item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
-                        entry.nickname
-                    )}: </b>`;
-                    item.appendChild(anchor);
-                    item.innerHTML += ` <span id="timestamp">${utils.formatTime(
-                        entry.timestamp
-                    )}</span>`;
-
-                    messages.appendChild(item);
-                    renderComplete.push(imageLoad);
                 } else if (entry.type === "highlight") {
                     const p = new Promise((resolve) => {
                         ui.addHighlightedMessage(

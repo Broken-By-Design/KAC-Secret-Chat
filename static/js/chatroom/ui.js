@@ -208,6 +208,93 @@ var ChatApp = window.ChatApp || {};
         });
     }
 
+    function addFileMessage(id, nickname, timestamp, fileType, fileName) {
+        const item = document.createElement("li");
+        
+        item.innerHTML = `<b id="nickname">${HtmlSanitizer.SanitizeHtml(
+            nickname
+        )}:</b> `;
+        
+        // Determine how to display based on file type
+        if (fileType.startsWith('image/')) {
+            // Display as image
+            const img = document.createElement("img");
+            img.id = id;
+            img.src = `/get_image/${id}`;
+            img.alt = fileName || id;
+
+            const anchor = document.createElement("a");
+            anchor.href = `/get_image/${id}`;
+            anchor.target = "_blank";
+            anchor.rel = "noopener noreferrer";
+            anchor.appendChild(img);
+            
+            item.appendChild(anchor);
+            
+            const imagePromise = new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve;
+            });
+            
+            item.innerHTML += ` <span id="timestamp">${utils.formatTime(
+                timestamp
+            )}</span>`;
+            
+            messages.appendChild(item);
+            
+            imagePromise.then(() => {
+                const elementHeight = item.offsetHeight;
+                const dynamicThreshold = elementHeight + 50;
+                scrollToBottom(false, dynamicThreshold);
+            });
+        } else if (fileType.startsWith('video/')) {
+            // Display as video
+            const video = document.createElement("video");
+            video.controls = true;
+            video.src = `/get_image/${id}`;
+            video.style.maxWidth = "100%";
+            video.style.maxHeight = "400px";
+            
+            item.appendChild(video);
+            item.innerHTML += ` <span id="timestamp">${utils.formatTime(
+                timestamp
+            )}</span>`;
+            
+            messages.appendChild(item);
+            scrollToBottom(false, 200);
+        } else if (fileType.startsWith('audio/')) {
+            // Display as audio player
+            const audio = document.createElement("audio");
+            audio.controls = true;
+            audio.src = `/get_image/${id}`;
+            audio.style.width = "300px";
+            
+            item.appendChild(audio);
+            item.innerHTML += ` <span id="timestamp">${utils.formatTime(
+                timestamp
+            )}</span>`;
+            
+            messages.appendChild(item);
+            scrollToBottom(false, 100);
+        } else {
+            // Display as download link
+            const anchor = document.createElement("a");
+            anchor.href = `/get_image/${id}`;
+            anchor.target = "_blank";
+            anchor.rel = "noopener noreferrer";
+            anchor.textContent = `📎 ${fileName || 'Download file'}`;
+            anchor.style.textDecoration = "underline";
+            
+            item.appendChild(anchor);
+            item.innerHTML += ` <span id="timestamp">${utils.formatTime(
+                timestamp
+            )}</span>`;
+            
+            messages.appendChild(item);
+            scrollToBottom(false, 50);
+        }
+    }
+
     function addUserConnectedMessage(nickname) {
         const item = document.createElement("li");
         item.innerHTML = `Welcome! <b>${HtmlSanitizer.SanitizeHtml(
@@ -225,12 +312,26 @@ var ChatApp = window.ChatApp || {};
     }
 
     function openImageOptions(file) {
-        if (file.size > 5 * 1024 * 1024) {
-            alert("No image larger than 5mb allowed!");
+        // Check if file is an image
+        const isImage = file.type.startsWith('image/');
+        const maxSize = isImage ? 5 * 1024 * 1024 : 10 * 1024 * 1024; // 5MB for images, 10MB for others
+        
+        if (file.size > maxSize) {
+            const sizeLimit = isImage ? '5MB' : '10MB';
+            alert(`File size exceeds the ${sizeLimit} limit!`);
             return false; // Indicate failure
         }
+        
         imageOption.style.display = "block";
-        imagePreview.src = URL.createObjectURL(file);
+        
+        // Only show preview for images
+        if (isImage) {
+            imagePreview.src = URL.createObjectURL(file);
+            imagePreview.style.display = "block";
+        } else {
+            imagePreview.style.display = "none";
+        }
+        
         botCheckbox.checked = false;
         botQuestion.value = "";
         botQuestion.style.display = "none";
@@ -413,6 +514,7 @@ var ChatApp = window.ChatApp || {};
         addHighlightedMessage: addHighlightedMessage,
         addSystemMessage: addSystemMessage,
         addImageMessage: addImageMessage,
+        addFileMessage: addFileMessage,
         addUserConnectedMessage: addUserConnectedMessage,
         addSystemMessageNoUser: addSystemMessageNoUser,
         addPinnedMessage: addPinnedMessage,
