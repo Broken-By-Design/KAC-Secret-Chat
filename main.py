@@ -684,23 +684,34 @@ def assemble_and_emit_image(temp_id, metadata):
         with open(out_path, 'wb') as f:
             f.write(full_bytes)
 
-    # emit the event once the image is saved
+    # Detect MIME type
+    mime_type = magic.from_buffer(full_bytes, mime=True)
+    file_name = metadata.get('name', 'unknown')
+
+    # emit the event once the file is saved
     socketio.emit('add_image', {
         'id': final_id,
         'nickname': metadata['nickname'],
-        'timestamp': metadata['timestamp']
+        'timestamp': metadata['timestamp'],
+        'fileType': mime_type,
+        'fileName': file_name
     })
 
-    add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], globals.current_log_file, type="image")
-    # add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent an image.")
-    if metadata["question"]:
+    add_chatlog_entry(final_id, metadata['nickname'], metadata['timestamp'], globals.current_log_file, type="image", file_type=mime_type, file_name=file_name)
+    
+    # Only allow bot questions for images with non-empty questions
+    if metadata["question"] and metadata["question"].strip() and mime_type.startswith('image/'):
         socketio.emit('chat_message', { 'message': "!bot "+metadata["question"], 'nickname': metadata['nickname'], 'timestamp': metadata['timestamp'] })
         add_chatlog_entry("!bot "+metadata["question"], metadata['nickname'], metadata['timestamp'], globals.current_log_file, type="text")
         response = generate_response(metadata["question"], user=metadata['nickname'], image=True, image_id=final_id)
         socketio.emit('chat_message', { 'message': response, 'nickname': "KAC-Bot", 'timestamp': datetime.datetime.now().isoformat() })
         add_chatlog_entry(response, "KAC-Bot", datetime.datetime.now().isoformat(), globals.current_log_file)
     else:
-        add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent an image.")
+        if mime_type.startswith('image/'):
+            add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent an image.")
+        else:
+            add_to_prompt_history_safe("user", f"{metadata['nickname']}: sent a file ({file_name}).")
+
 
 @socketio.on('typing')
 def handle_typing(data):
@@ -889,9 +900,19 @@ def get_image(id):
     _, ext = os.path.splitext(id)
     filepath = os.path.join("./chatlogs/images/", f"{filename}")
 
-    # If you want to allow files *with* extension too
-    # you can loop through allowed extensions and check if the file exists
-    for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.psd', '.raw', '.svg', '.heif', '.jp2', '.jpx', '.jpm', '.j2k', '.mj2']:
+    # Extended list of supported file extensions including video, audio, and documents
+    allowed_extensions = [
+        # Images
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp', '.psd', '.raw', '.svg', '.heif', '.jp2', '.jpx', '.jpm', '.j2k', '.mj2',
+        # Videos
+        '.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.m4v',
+        # Audio
+        '.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac', '.wma', '.opus',
+        # Documents
+        '.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt'
+    ]
+    
+    for ext in allowed_extensions:
         full_path = filepath + ext
         if os.path.exists(full_path):
             return send_file(full_path)  # or whatever you need to do

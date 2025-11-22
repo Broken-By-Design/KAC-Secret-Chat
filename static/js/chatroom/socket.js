@@ -44,21 +44,31 @@ var ChatApp = window.ChatApp || {};
 
     /**
      * Compresses an image file (if possible) and sends it to the server.
+     * For non-image files, sends them directly without compression.
      * This is called by an event listener in the main.js file.
      */
     async function compressAndSendImage(
         file,
-        //nickname,
         timestamp,
         question = null
     ) {
+        // For non-image files, send them directly without compression
+        if (!file.type.startsWith('image/')) {
+            const buffer = await file.arrayBuffer();
+            return chunkAndEmit(
+                buffer,
+                file.name,
+                timestamp,
+                question
+            );
+        }
+        
         // For GIFs or SVGs, send them directly without compression.
         if (file.type === "image/gif" || file.type === "image/svg+xml") {
             const buffer = await file.arrayBuffer();
             return chunkAndEmit(
                 buffer,
                 file.name,
-                //nickname,
                 timestamp,
                 question
             );
@@ -129,11 +139,21 @@ var ChatApp = window.ChatApp || {};
                 messages.forEach((msg) => {
                     // Reuse the existing UI functions to add messages
                     if (msg.type === "image") {
-                        ui.addImageMessage(
-                            msg.id,
-                            msg.nickname,
-                            msg.timestamp
-                        );
+                        if (msg.fileType) {
+                            ui.addFileMessage(
+                                msg.id,
+                                msg.nickname,
+                                msg.timestamp,
+                                msg.fileType,
+                                msg.fileName
+                            );
+                        } else {
+                            ui.addImageMessage(
+                                msg.id,
+                                msg.nickname,
+                                msg.timestamp
+                            );
+                        }
                     } else if (msg.highlight) {
                         ui.addHighlightedMessage(
                             msg.message,
@@ -187,7 +207,12 @@ var ChatApp = window.ChatApp || {};
         });
 
         socket.on("add_image", (data) => {
-            ui.addImageMessage(data.id, data.nickname, data.timestamp);
+            // Check if this is a file with type info or legacy image
+            if (data.fileType) {
+                ui.addFileMessage(data.id, data.nickname, data.timestamp, data.fileType, data.fileName);
+            } else {
+                ui.addImageMessage(data.id, data.nickname, data.timestamp);
+            }
             lastMessageTimestamp = data.timestamp;
             if (document.hidden) {
                 ui.incrementMissedCount();

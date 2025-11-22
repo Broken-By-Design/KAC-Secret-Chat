@@ -15,19 +15,24 @@ def get_online_users(connected_usernames: list[str]) -> list[str]:
     return list(connected_usernames)
 
 
-def add_chatlog_entry(message, nickname, timestamp, current_log_file, type: str = "text") -> None:
+def add_chatlog_entry(message, nickname, timestamp, current_log_file, type: str = "text", file_type: str = None, file_name: str = None) -> None:
     chatlogs = []
 
     if os.path.exists(current_log_file):
         with open(current_log_file, 'r') as f:
             chatlogs = json.load(f)
     if type == "image":
-        chatlogs.append({
+        entry = {
             'id': message,
             'nickname': nickname,
             'timestamp': timestamp,
             'type': type
-        })
+        }
+        if file_type:
+            entry['fileType'] = file_type
+        if file_name:
+            entry['fileName'] = file_name
+        chatlogs.append(entry)
     else:
         chatlogs.append({
             'message': message,
