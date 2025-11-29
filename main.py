@@ -160,6 +160,30 @@ def run_periodic_ban_sync():
         eventlet.sleep(300) 
         sync_ban_list_from_db()
 
+def check_expired_mutes():
+    """Periodically checks for and removes expired mutes."""
+    while True:
+        now = datetime.datetime.now()
+        # Iterate over a copy of the items, as we may modify the dict
+        for nickname, details in list(globals.muted_user_details.items()):
+            if now >= details["mute_until"]:
+                print(f"Mute expired for {nickname}. Unmuting.")
+                # Remove from both mute tracking structures
+                if nickname in globals.muted_users:
+                    globals.muted_users.remove(nickname)
+                del globals.muted_user_details[nickname]
+
+                # Notify the user they are unmuted
+                sids = globals.users_with_sid.get(nickname)
+                if sids:
+                    for sid in sids:
+                        socketio.emit('force_unmute', {}, room=sid)
+                        socketio.emit('system_message', {
+                            'message': "You are no longer muted."
+                        }, room=sid)
+
+        eventlet.sleep(1) # Check every second
+
 def clear_chatlogs():
     chatlogs_dir = 'chatlogs'
 
@@ -461,6 +485,57 @@ def handle_private_message(data):
     recipient = data.get('to')
     timestamp = data.get('timestamp')
     sender = session.get('nickname')
+
+    # Spam detection logic
+    now = datetime.datetime.now()
+    if sender in globals.muted_user_details:
+        mute_info = globals.muted_user_details[sender]
+        if now < mute_info["mute_until"]:
+            remaining = (mute_info["mute_until"] - now).total_seconds()
+            socketio.emit('system_message', {
+                'message': f"You are still muted for {remaining:.1f} seconds."
+            }, room=request.sid)
+            return
+
+    if sender not in globals.user_message_timestamps:
+        globals.user_message_timestamps[sender] = []
+
+    globals.user_message_timestamps[sender].append(now)
+
+    # Keep only timestamps from the last 2 seconds
+    two_seconds_ago = now - datetime.timedelta(seconds=2)
+    globals.user_message_timestamps[sender] = [
+        ts for ts in globals.user_message_timestamps[sender] if ts > two_seconds_ago
+    ]
+
+    if len(globals.user_message_timestamps[sender]) > 5:
+        now = datetime.datetime.now()
+        if sender not in globals.user_offenses:
+            globals.user_offenses[sender] = {"count": 0, "last_offense": now}
+
+        # Reset offense count if last offense was more than 5 minutes ago
+        if now - globals.user_offenses[sender]["last_offense"] > datetime.timedelta(minutes=5):
+            globals.user_offenses[sender]["count"] = 0
+
+        globals.user_offenses[sender]["count"] += 1
+        globals.user_offenses[sender]["last_offense"] = now
+        offenses = globals.user_offenses[sender]["count"]
+
+        # Mute duration: 10s, 15s, 20s, 25s, ...
+        mute_duration = 10 + 5 * (offenses - 1)
+
+        mute_until = now + datetime.timedelta(seconds=mute_duration)
+        globals.muted_user_details[sender] = {"mute_until": mute_until}
+        globals.muted_users.add(sender)
+
+        socketio.emit('system_message', {
+            'message': f"You are muted for {mute_duration} seconds due to spamming."
+        }, room=request.sid)
+        
+        # Also inform the client they are muted to update UI instantly
+        socketio.emit('force_mute', {}, room=request.sid)
+
+        return
     
     if not sender or sender not in globals.connected_usernames:
         print(f"Private message rejected: sender {sender} not connected")
@@ -498,6 +573,57 @@ def handle_chat_message(data):
     nickname = session.get('nickname')
     timestamp = data.get('timestamp')
     print("Message received:", message, "from", nickname)
+
+    # Spam detection logic
+    now = datetime.datetime.now()
+    if nickname in globals.muted_user_details:
+        mute_info = globals.muted_user_details[nickname]
+        if now < mute_info["mute_until"]:
+            remaining = (mute_info["mute_until"] - now).total_seconds()
+            socketio.emit('system_message', {
+                'message': f"You are still muted for {remaining:.1f} seconds."
+            }, room=request.sid)
+            return
+
+    if nickname not in globals.user_message_timestamps:
+        globals.user_message_timestamps[nickname] = []
+
+    globals.user_message_timestamps[nickname].append(now)
+
+    # Keep only timestamps from the last 2 seconds
+    two_seconds_ago = now - datetime.timedelta(seconds=2)
+    globals.user_message_timestamps[nickname] = [
+        ts for ts in globals.user_message_timestamps[nickname] if ts > two_seconds_ago
+    ]
+
+    if len(globals.user_message_timestamps[nickname]) > 5:
+        now = datetime.datetime.now()
+        if nickname not in globals.user_offenses:
+            globals.user_offenses[nickname] = {"count": 0, "last_offense": now}
+
+        # Reset offense count if last offense was more than 5 minutes ago
+        if now - globals.user_offenses[nickname]["last_offense"] > datetime.timedelta(minutes=5):
+            globals.user_offenses[nickname]["count"] = 0
+
+        globals.user_offenses[nickname]["count"] += 1
+        globals.user_offenses[nickname]["last_offense"] = now
+        offenses = globals.user_offenses[nickname]["count"]
+
+        # Mute duration: 10s, 15s, 20s, 25s, ...
+        mute_duration = 10 + 5 * (offenses - 1)
+
+        mute_until = now + datetime.timedelta(seconds=mute_duration)
+        globals.muted_user_details[nickname] = {"mute_until": mute_until}
+        globals.muted_users.add(nickname)
+
+        socketio.emit('system_message', {
+            'message': f"You are muted for {mute_duration} seconds due to spamming."
+        }, room=request.sid)
+        
+        # Also inform the client they are muted to update UI instantly
+        socketio.emit('force_mute', {}, room=request.sid)
+
+        return
 
     if nickname in globals.users_to_censor:
         message = censor.censor_message(message)
@@ -913,16 +1039,20 @@ def unmute_users():
     if not data or 'users' not in data:
         return jsonify({"message": "Invalid request. 'users' key is missing."}), 400
 
-    users_to_kick = data['users']
+    users_to_unmute = data['users']
 
-    for user in users_to_kick:
-        sids_to_kick = globals.users_with_sid.get(user)
-        if sids_to_kick:
-            globals.muted_users.remove(user)
+    for user in users_to_unmute:
+        if user in globals.muted_user_details:
+            del globals.muted_user_details[user]
+        
+        sids_to_unmute = globals.users_with_sid.get(user)
+        if sids_to_unmute:
+            if user in globals.muted_users:
+                globals.muted_users.remove(user)
 
-            for sid_to_kick in list(sids_to_kick):
-                socketio.emit('force_unmute', {}, room=sid_to_kick)            
-                print(f"Sent force_unmute command to {user} (SID: {sid_to_kick}).")
+            for sid_to_unmute in list(sids_to_unmute):
+                socketio.emit('force_unmute', {}, room=sid_to_unmute)            
+                print(f"Sent force_unmute command to {user} (SID: {sid_to_unmute}).")
         
     return jsonify({"message": f"Successfully sent unmute command"}), 200
 
@@ -1203,6 +1333,10 @@ with app.app_context():
     ban_sync_thread = Thread(target=run_periodic_ban_sync)
     ban_sync_thread.daemon = True
     ban_sync_thread.start()
+
+    mute_check_thread = Thread(target=check_expired_mutes)
+    mute_check_thread.daemon = True
+    mute_check_thread.start()
 
 
 if __name__ == '__main__':

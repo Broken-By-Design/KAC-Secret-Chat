@@ -20,6 +20,10 @@ users_to_censor = set()
 kicked_users = set()
 muted_users = set()
 
+user_message_timestamps = {}
+muted_user_details = {}
+user_offenses = {} # { "username": {"count": 0, "last_offense": timestamp} }
+
 banned_ips_cache = {}
 
 video_chat_users = {}

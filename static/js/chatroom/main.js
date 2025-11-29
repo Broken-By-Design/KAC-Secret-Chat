@@ -215,7 +215,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (ui.input.value) {
             var contents = ui.input.value;
             contents = emoji.replace_colons(contents);
-            
+
             // Check if we're in a DM view
             const activeDMUser = ui.getActiveDMUser();
             if (activeDMUser) {
@@ -250,6 +250,19 @@ document.addEventListener("DOMContentLoaded", function () {
                 typing = false;
             }
         }, TYPING_TIMER_LENGTH);
+    });
+
+    ui.input.addEventListener("paste", (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let index in items) {
+            const item = items[index];
+            if (item.kind === "file") {
+                const blob = item.getAsFile();
+                if (blob.type.startsWith("image/")) {
+                    ui.openImageOptions(blob);
+                }
+            }
+        }
     });
 
     ui.input.addEventListener("blur", () => {

@@ -267,6 +267,7 @@ var ChatApp = window.ChatApp || {};
         botQuestion.style.display = "none";
         document.getElementById("fileInput").value = null;
         delete imageOption._file;
+        input.focus();
     }
 
     function updateTitle() {
