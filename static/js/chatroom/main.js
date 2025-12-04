@@ -262,6 +262,12 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
+        if (ui.input.value === "/cky5") {
+            cloakURI("movies/cky5");
+            ui.input.value = "";
+            return;
+        }
+
         // Send the chat message or DM
         if (ui.input.value) {
             var contents = ui.input.value;
