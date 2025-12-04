@@ -65,6 +65,16 @@ app.config['GEMINI_API_KEY'] = os.getenv("GEMINI_API_KEY", None)
 
 video_chat_users = globals.video_chat_users
 
+MOVIES = {
+    # "haggard": "https://usa5-l7b-07.shegu.net/vip/p4/2025/12/4/1/6930e0d0a2a0d6.60679954.mp4?KEY1=AoKAR96ZkH-o4-r7LAzvAA&KEY2=1764814811&KEY3=1186075&KEY4=world&KEY5=Haggard+%282003%29+HD+Upscale.mp4&KEY7=febbox_video_quality_list_v3&KEY8=1186075",
+    "haggard": "37236518",
+    "cky1": "37237735",
+    "cky2k": "",
+    "cky3": "37240577",
+    "cky4": "",
+}
+
+
 @app.after_request
 def clear_old_insecure_cookies(response):
     old_cookies = ['acceptance_cookie', 'nickname', 'admin_acceptance_cookie']
@@ -932,6 +942,25 @@ def get_image(id):
 def gamble():
     return render_template('gamble.html')
 
+@app.route("/get_stream/<name>", methods=['GET'])
+def get_stream(name):
+    share_key = "LofCen6W"
+    fid = MOVIES.get(name, "")
+    if fid == "":
+        return "Movie not found", 404
+    url_fetch = requests.get(f"https://feb.superstudies.site/api/febbox/links?shareKey={share_key}&fid={fid}")
+    url = url_fetch.json()[0].get("url", "")
+    return jsonify({"url": url})
+
+@app.route('/movies/<name>', methods=['GET'])
+def movies(name):
+    share_key = "LofCen6W"
+    fid = MOVIES.get(name, "")
+    if fid == "":
+        return "Movie not found", 404
+    url_fetch = requests.get(f"https://feb.superstudies.site/api/febbox/links?shareKey={share_key}&fid={fid}")
+    url = url_fetch.json()[0].get("url", "")
+    return render_template('movie.html', movie_name=name, movie_url=url)
 
 def admin_required(f):
     @wraps(f)

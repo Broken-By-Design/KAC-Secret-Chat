@@ -109,6 +109,10 @@ var ChatApp = window.ChatApp || {};
         return message;
     }
 
+    function createRawEmbed(videoUrl) {
+        return `<video controls><source src="${videoUrl}">Your browser does not support the video tag.</video>`;
+    }
+
     function addMessage(message, nickname, timestamp) {
         if (!message || !nickname || !timestamp) return;
 
@@ -615,6 +619,7 @@ var ChatApp = window.ChatApp || {};
         clearChat: function () {
             messages.innerHTML = "";
         },
+        createRawEmbed: createRawEmbed,
         triggerJumpscare: triggerJumpscare,
 
         // DM functions

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link
+            href="https://vjs.zencdn.net/8.23.4/video-js.min.css"
+            rel="stylesheet"
+        />
+        <!-- <link href="https://cdn.jsdelivr.net/npm/@videojs/themes@1/dist/city/index.css" rel="stylesheet" /> -->
+        <style>
+            body {
+                margin: 0;
+                background: black;
+            }
+            .video-js {
+                width: 100vw !important;
+                height: 100vh !important;
+            }
+        </style>
+        <title>{{ movie_name }}</title>
+    </head>
+    <body>
+        <video
+            id="my-video"
+            class="video-js"
+            controls
+            preload="auto"
+            width="100vw"
+            height="100vh"
+            type="video/mp4"
+        >
+            <source src="{{ movie_url }}" />
+        </video>
+        <script src="https://vjs.zencdn.net/8.23.4/video.min.js"></script>
+        <script>
+            const player = videojs("my-video");
+
+            const movieName = "{{ movie_name }}";
+
+            let retryCount = 0;
+            const maxRetries = 3;
+
+            player.on("error", function () {
+                const error = player.error();
+                const currentTime = player.currentTime();
+
+                console.log("Error detected:", error);
+
+                // If we haven't exceeded max retries, try to get a new link
+                if (retryCount < maxRetries) {
+                    retryCount++;
+                    console.log(
+                        `Attempting to refresh URL (Attempt ${retryCount})...`
+                    );
+
+                    // 1. Fetch the new URL from your Flask endpoint
+                    fetch(`/get_stream/${movieName}`)
+                        .then((response) => response.json())
+                        .then((data) => {
+                            if (data.url) {
+                                console.log("New URL received:", data.url);
+
+                                // 2. Update the player source
+                                player.src({
+                                    type: "video/mp4",
+                                    src: data.url,
+                                });
+
+                                // 3. Reset error display and load
+                                player.error(null);
+
+                                // 4. Once metadata loads, seek to the old time and play
+                                player.one("loadedmetadata", function () {
+                                    player.currentTime(currentTime);
+                                    player
+                                        .play()
+                                        .catch((e) =>
+                                            console.log(
+                                                "Auto-play prevented:",
+                                                e
+                                            )
+                                        );
+                                });
+                            }
+                        })
+                        .catch((err) =>
+                            console.error(
+                                "Failed to fetch new stream URL:",
+                                err
+                            )
+                        );
+                } else {
+                    console.error("Max retries reached. Stopping playback.");
+                }
+            });
+
+            player.on("progress", () => {
+                if (retryCount > 0) retryCount = 0;
+            });
+
+            document.addEventListener("keydown", (event) => {
+                const key = event.key.toLowerCase();
+
+                // SPACE BAR (Play/Pause)
+                if (key === " ") {
+                    event.preventDefault(); // Stop page scrolling
+                    if (player.paused()) {
+                        player.play();
+                    } else {
+                        player.pause();
+                    }
+                }
+
+                // F KEY (Fullscreen)
+                else if (key === "f") {
+                    if (player.isFullscreen()) {
+                        player.exitFullscreen();
+                    } else {
+                        player.requestFullscreen();
+                    }
+                }
+
+                // ARROW KEYS (Seek/Volume - Optional Bonus)
+                else if (event.key === "ArrowRight") {
+                    player.currentTime(player.currentTime() + 10);
+                } else if (event.key === "ArrowLeft") {
+                    player.currentTime(player.currentTime() - 10);
+                }
+            });
+        </script>
+    </body>
+</html>

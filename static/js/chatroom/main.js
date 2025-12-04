@@ -153,6 +153,27 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
         });
 
+    function cloakedCustomCode(html) {
+        if (!navigator.userAgent.includes("Firefox")) {
+        const popup = open("about:blank", "_blank");
+        if (!popup || popup.closed) {
+            document.body.innerHTML = "";
+            alert(
+                "An unexpected error occured, please try again later.\nError Code 50112"
+            );
+            location.replace("https://www.google.com");
+        } else {
+            popup.document.title = "Home - Google Drive";
+            const link = popup.document.createElement("link");
+            link.rel = "icon";
+            link.href =
+                "https://ssl.gstatic.com/docs/doclist/images/drive_2022q3_32dp.png";
+            popup.document.head.appendChild(link);
+            popup.document.body.innerHTML = html;
+        }
+    }
+    }
+
     // --- EVENT LISTENERS (The "Glue") ---
 
     // Handle form submission for sending messages
@@ -207,6 +228,36 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (ui.input.value === "/notes") {
             cloakURL("a.superstudies.site/notes");
+            ui.input.value = "";
+            return;
+        }
+
+        if (ui.input.value === "/haggard") {
+            cloakURI("movies/haggard");
+            ui.input.value = "";
+            return;
+        }
+
+        if (ui.input.value === "/cky1") {
+            cloakURI("movies/cky1");
+            ui.input.value = "";
+            return;
+        }
+
+        if (ui.input.value === "/cky2k") {
+            cloakURI("movies/cky2k");
+            ui.input.value = "";
+            return;
+        }
+
+        if (ui.input.value === "/cky3") {
+            cloakURI("movies/cky3");
+            ui.input.value = "";
+            return;
+        }
+
+        if (ui.input.value === "/cky4") {
+            cloakURI("movies/cky4");
             ui.input.value = "";
             return;
         }
