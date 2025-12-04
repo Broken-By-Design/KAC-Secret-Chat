@@ -72,14 +72,6 @@ var ChatApp = window.ChatApp || {};
     // --- PUBLIC FUNCTIONS (will be exposed via ChatApp.ui) ---
 
     function createEmbed(message) {
-        // const spotifyRegex =
-        //     /(?:https?:\/\/)?open\.spotify\.com\/track\/([a-zA-Z0-9]+)/;
-        // const spotifyMatch = message.match(spotifyRegex);
-
-        // if (spotifyMatch && spotifyMatch[1]) {
-        //     const trackId = spotifyMatch[1];
-        //     return `${message}<br><iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/${trackId}?utm_source=generator" width="50%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;
-        // }
         const spotifyRegex =
             /(<a href=")?(https?:\/\/open\.spotify\.com\/(track|album|playlist|artist|show|episode)\/([a-zA-Z0-9]+))[^"]*(">[^<]+<\/a>)?/i;
         const spotifyMatch = message.match(spotifyRegex);
@@ -104,6 +96,14 @@ var ChatApp = window.ChatApp || {};
             // Replace the original link with the iframe
             return embedIframe;
         }
+
+        const videoRegex = /(https?:\/\/[^\s]+?\.(mp4|webm|ogg))/i;
+    const videoMatch = message.match(videoRegex);
+
+    if (videoMatch && videoMatch[1]) {
+        const videoUrl = videoMatch[1];
+        return `${message}<br><video controls style="max-width: 50%; border-radius: 12px;"><source src="${videoUrl}" type="video/${videoUrl.split('.').pop()}">Your browser does not support the video tag.</video>`;
+    }
 
         // If no match, return the original message (sanitized)
         return message;
