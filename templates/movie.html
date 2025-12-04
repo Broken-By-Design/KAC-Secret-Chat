@@ -34,7 +34,9 @@
         </video>
         <script src="https://vjs.zencdn.net/8.23.4/video.min.js"></script>
         <script>
-            const player = videojs("my-video");
+            const player = videojs("my-video", {
+                playbackRates: [0.25, 0.5, 1, 1.25, 1.5, 2, 3],
+            });
 
             const movieName = "{{ movie_name }}";
 
@@ -127,6 +129,21 @@
                 } else if (event.key === "ArrowLeft") {
                     player.currentTime(player.currentTime() - 10);
                 }
+            });
+
+            player.on("timeupdate", () => {
+                localStorage.setItem(movieName + "_pos", player.currentTime());
+            });
+
+            player.on("loadedmetadata", () => {
+                const pos = localStorage.getItem(movieName + "_pos");
+                if (pos) {
+                    setTimeout(() => {
+                        player.currentTime(parseFloat(pos));
+                    }, 50);
+                }
+
+                // if (pos) player.currentTime(parseFloat(pos));
             });
         </script>
     </body>
