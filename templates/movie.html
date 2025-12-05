@@ -38,7 +38,7 @@
                 playbackRates: [0.25, 0.5, 1, 1.25, 1.5, 2, 3],
             });
 
-            const movieName = "{{ movie_name }}";
+            const fid = "{{ fid }}";
 
             let retryCount = 0;
             const maxRetries = 3;
@@ -57,7 +57,7 @@
                     );
 
                     // 1. Fetch the new URL from your Flask endpoint
-                    fetch(`/get_stream/${movieName}`)
+                    fetch(`/get_stream/${fid}`)
                         .then((response) => response.json())
                         .then((data) => {
                             if (data.url) {
@@ -132,11 +132,11 @@
             });
 
             player.on("timeupdate", () => {
-                localStorage.setItem(movieName + "_pos", player.currentTime());
+                localStorage.setItem(fid + "_pos", player.currentTime());
             });
 
             player.on("loadedmetadata", () => {
-                const pos = localStorage.getItem(movieName + "_pos");
+                const pos = localStorage.getItem(fid + "_pos");
                 if (pos) {
                     setTimeout(() => {
                         player.currentTime(parseFloat(pos));

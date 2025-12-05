@@ -232,57 +232,11 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        const commands = {
-            "/haggard": "movies/haggard",
-            "/cky1": "movies/cky1",
-            "/cky2k": "movies/cky2k",
-            "/cky3": "movies/cky3",
-            "/cky4": "movies/cky4",
-            "/cky5": "movies/cky5",
-        };
-
-        const cmd = ui.input.value.trim();
-        if (commands[cmd]) {
-            cloakURI(commands[cmd]);
+        if (ui.input.value === "/movies" || ui.input.value === "/movie") {
+            cloakURI("movies");
             ui.input.value = "";
             return;
         }
-
-        // if (ui.input.value === "/haggard") {
-        //     cloakURI("movies/haggard");
-        //     ui.input.value = "";
-        //     return;
-        // }
-
-        // if (ui.input.value === "/cky1") {
-        //     cloakURI("movies/cky1");
-        //     ui.input.value = "";
-        //     return;
-        // }
-
-        // if (ui.input.value === "/cky2k") {
-        //     cloakURI("movies/cky2k");
-        //     ui.input.value = "";
-        //     return;
-        // }
-
-        // if (ui.input.value === "/cky3") {
-        //     cloakURI("movies/cky3");
-        //     ui.input.value = "";
-        //     return;
-        // }
-
-        // if (ui.input.value === "/cky4") {
-        //     cloakURI("movies/cky4");
-        //     ui.input.value = "";
-        //     return;
-        // }
-
-        // if (ui.input.value === "/cky5") {
-        //     cloakURI("movies/cky5");
-        //     ui.input.value = "";
-        //     return;
-        // }
 
         // Send the chat message or DM
         if (ui.input.value) {

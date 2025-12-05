@@ -65,17 +65,6 @@ app.config['GEMINI_API_KEY'] = os.getenv("GEMINI_API_KEY", None)
 
 video_chat_users = globals.video_chat_users
 
-MOVIES = {
-    # "haggard": "https://usa5-l7b-07.shegu.net/vip/p4/2025/12/4/1/6930e0d0a2a0d6.60679954.mp4?KEY1=AoKAR96ZkH-o4-r7LAzvAA&KEY2=1764814811&KEY3=1186075&KEY4=world&KEY5=Haggard+%282003%29+HD+Upscale.mp4&KEY7=febbox_video_quality_list_v3&KEY8=1186075",
-    "haggard": "37236518",
-    "cky1": "37237735",
-    "cky2k": "",
-    "cky3": "37240577",
-    "cky4": "37241091",
-    "cky5": "37241484",
-}
-
-
 @app.after_request
 def clear_old_insecure_cookies(response):
     old_cookies = ['acceptance_cookie', 'nickname', 'admin_acceptance_cookie']
@@ -943,25 +932,48 @@ def get_image(id):
 def gamble():
     return render_template('gamble.html')
 
-@app.route("/get_stream/<name>", methods=['GET'])
-def get_stream(name):
+@app.route("/get_stream/<fid>", methods=['GET'])
+def get_stream(fif):
     share_key = "LofCen6W"
-    fid = MOVIES.get(name, "")
-    if fid == "":
-        return "Movie not found", 404
     url_fetch = requests.get(f"https://feb.superstudies.site/api/febbox/links?shareKey={share_key}&fid={fid}")
     url = url_fetch.json()[0].get("url", "")
     return jsonify({"url": url})
 
-@app.route('/movies/<name>', methods=['GET'])
-def movies(name):
+@app.route('/movie/<fid>', methods=['GET'])
+def movie(fid):
     share_key = "LofCen6W"
-    fid = MOVIES.get(name, "")
-    if fid == "":
-        return "Movie not found", 404
-    url_fetch = requests.get(f"https://feb.superstudies.site/api/febbox/links?shareKey={share_key}&fid={fid}")
-    url = url_fetch.json()[0].get("url", "")
-    return render_template('movie.html', movie_name=name, movie_url=url)
+    data_fetch = requests.get(f"https://feb.superstudies.site/api/febbox/links?shareKey={share_key}&fid={fid}")
+    data = data_fetch.json()
+    url = data[0].get("url", "")
+    return render_template('movie.html', fid=fid, movie_url=url)
+
+@app.route('/movies', methods=['GET'])
+def movies():
+    share_key = "LofCen6W"
+
+    try:
+        url = f"https://feb.superstudies.site/api/febbox/files?shareKey={share_key}"
+        data_fetch = requests.get(url)
+        data = data_fetch.json()
+    except Exception as e:
+        print(f"Error fetching movies: {e}")
+        return "Error loading movies", 500
+
+    movie_list = []
+    if isinstance(data, list):
+        for item in data:
+            if 'file_name' in item:
+                clean_name = item['file_name'].split(")")[0] + ")"
+                
+                movie_list.append({
+                    "name": clean_name,
+                    "thumb": item.get('thumb', ''),
+                    "file_id": item.get('fid')
+                })
+
+    movie_list.sort(key=lambda x: x['name'].lower())
+    
+    return render_template('movie_list.html', movies=movie_list)
 
 def admin_required(f):
     @wraps(f)
