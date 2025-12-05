@@ -43,38 +43,55 @@
             let retryCount = 0;
             const maxRetries = 3;
 
+            let isPositionRestored = false;
+
+            player.on("loadedmetadata", () => {
+                const pos = localStorage.getItem(fid + "_pos");
+
+                if (pos && parseFloat(pos) > 0) {
+                    console.log("Restoring position to:", pos);
+                    player.currentTime(parseFloat(pos));
+                } else {
+                    isPositionRestored = true;
+                }
+            });
+
+            player.on("seeked", () => {
+                isPositionRestored = true;
+            });
+
+            player.on("timeupdate", () => {
+                if (isPositionRestored) {
+                    localStorage.setItem(fid + "_pos", player.currentTime());
+                }
+            });
+
             player.on("error", function () {
                 const error = player.error();
-                const currentTime = player.currentTime();
+                const brokenTime = player.currentTime();
 
                 console.log("Error detected:", error);
 
-                // If we haven't exceeded max retries, try to get a new link
                 if (retryCount < maxRetries) {
                     retryCount++;
                     console.log(
                         `Attempting to refresh URL (Attempt ${retryCount})...`
                     );
 
-                    // 1. Fetch the new URL from your Flask endpoint
                     fetch(`/get_stream/${fid}`)
                         .then((response) => response.json())
                         .then((data) => {
                             if (data.url) {
                                 console.log("New URL received:", data.url);
 
-                                // 2. Update the player source
                                 player.src({
                                     type: "video/mp4",
                                     src: data.url,
                                 });
-
-                                // 3. Reset error display and load
                                 player.error(null);
 
-                                // 4. Once metadata loads, seek to the old time and play
                                 player.one("loadedmetadata", function () {
-                                    player.currentTime(currentTime);
+                                    player.currentTime(brokenTime);
                                     player
                                         .play()
                                         .catch((e) =>
@@ -101,50 +118,58 @@
                 if (retryCount > 0) retryCount = 0;
             });
 
-            document.addEventListener("keydown", (event) => {
-                const key = event.key.toLowerCase();
+            document.addEventListener(
+                "keydown",
+                (event) => {
+                    const key = event.key.toLowerCase();
 
-                // SPACE BAR (Play/Pause)
-                if (key === " ") {
-                    event.preventDefault(); // Stop page scrolling
-                    if (player.paused()) {
-                        player.play();
-                    } else {
-                        player.pause();
+                    // ESCAPE (Back)
+                    if (key === "escape") {
+                        event.preventDefault(); // Stop standard browser actions
+
+                        if (player.isFullscreen()) {
+                            player.exitFullscreen();
+                        } else {
+                            // Save Position
+                            if (player.currentTime() > 0) {
+                                localStorage.setItem(
+                                    fid + "_pos",
+                                    player.currentTime()
+                                );
+                            }
+                            // Navigate Back
+                            window.location.href = "/movies";
+                        }
                     }
-                }
 
-                // F KEY (Fullscreen)
-                else if (key === "f") {
-                    if (player.isFullscreen()) {
-                        player.exitFullscreen();
-                    } else {
-                        player.requestFullscreen();
+                    // SPACE BAR (Play/Pause)
+                    else if (key === " ") {
+                        event.preventDefault();
+                        if (player.paused()) {
+                            player.play();
+                        } else {
+                            player.pause();
+                        }
                     }
-                }
 
-                // ARROW KEYS (Seek/Volume - Optional Bonus)
-                else if (event.key === "ArrowRight") {
-                    player.currentTime(player.currentTime() + 10);
-                } else if (event.key === "ArrowLeft") {
-                    player.currentTime(player.currentTime() - 10);
-                }
-            });
+                    // F KEY (Fullscreen)
+                    else if (key === "f") {
+                        if (player.isFullscreen()) {
+                            player.exitFullscreen();
+                        } else {
+                            player.requestFullscreen();
+                        }
+                    }
 
-            player.on("timeupdate", () => {
-                localStorage.setItem(fid + "_pos", player.currentTime());
-            });
-
-            player.on("loadedmetadata", () => {
-                const pos = localStorage.getItem(fid + "_pos");
-                if (pos) {
-                    setTimeout(() => {
-                        player.currentTime(parseFloat(pos));
-                    }, 50);
-                }
-
-                // if (pos) player.currentTime(parseFloat(pos));
-            });
+                    // ARROW KEYS (Seek)
+                    else if (event.key === "ArrowRight") {
+                        player.currentTime(player.currentTime() + 10);
+                    } else if (event.key === "ArrowLeft") {
+                        player.currentTime(player.currentTime() - 10);
+                    }
+                },
+                true
+            );
         </script>
     </body>
 </html>

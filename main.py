@@ -971,7 +971,7 @@ def movies():
                     "file_id": item.get('fid')
                 })
 
-    movie_list.sort(key=lambda x: x['name'].lower())
+    movie_list.sort(key=lambda x: x['name'].replace(" ", "").lower())
     
     return render_template('movie_list.html', movies=movie_list)
 
