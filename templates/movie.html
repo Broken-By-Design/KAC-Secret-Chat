@@ -87,6 +87,7 @@
             controls
             preload="auto"
             type="video/mp4"
+            autofocus
         >
             <source src="{{ movie_url }}" />
             <track
@@ -116,25 +117,24 @@
             });
 
             player.ready(function () {
-                this.focus();
-                
+                // this.focus();
+                var myPlayer = this;
+
+                setTimeout(function () {
+                    myPlayer.focus();
+                }, 200);
+
                 const urlParams = new URLSearchParams(window.location.search);
                 let movieName = urlParams.get("n");
 
-                // Fallback: If ?n= is missing, use the server variable or a default
                 if (!movieName) {
                     movieName = "{{ movie_name }}" || "Unknown Title";
                 }
-
-                // 3. Create the Title Overlay
                 const titleOverlay = document.createElement("div");
                 titleOverlay.className = "vjs-title-overlay";
 
-                // IMPORTANT: Use textContent instead of innerHTML for security
-                // (prevents XSS attacks via the URL)
                 titleOverlay.textContent = movieName;
 
-                // Append it to the player container
                 player.el().appendChild(titleOverlay);
             });
 
