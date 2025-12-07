@@ -90,12 +90,12 @@
             autofocus
         >
             <source src="{{ movie_url }}" />
-            <track
+            <!-- <track
                 kind="captions"
                 src="/get_subtitle/{{ fid }}"
                 srclang="en"
                 label="English"
-            />
+            /> -->
         </video>
         <script src="https://vjs.zencdn.net/8.23.4/video.min.js"></script>
         <script src="https://cdn.sc.gl/videojs-hotkeys/latest/videojs.hotkeys.min.js"></script>
@@ -133,6 +133,43 @@
                 titleOverlay.textContent = movieName;
 
                 player.el().appendChild(titleOverlay);
+
+                fetch(`/get_subtitles/${fid}`)
+                    .then((response) => {
+                        if (!response.ok) {
+                            // If 404 or other error, throw to catch block (no subs)
+                            throw new Error("Subtitle request failed");
+                        }
+                        return response.json();
+                    })
+                    .then((data) => {
+                        // Expecting format: { subs: [ { label: "English 1", src: "..." }, ... ] }
+                        if (data.subs && Array.isArray(data.subs)) {
+                            console.log(
+                                `Loaded ${data.subs.length} subtitle tracks.`
+                            );
+
+                            data.subs.forEach((sub, index) => {
+                                // Add track to Video.js
+                                myPlayer.addRemoteTextTrack(
+                                    {
+                                        kind: "captions", // 'captions' usually handles display better than 'subtitles' in some browsers
+                                        label: sub.label,
+                                        src: sub.src,
+                                        srclang: "en",
+                                        default: index === 0, // Make the first one active by default
+                                    },
+                                    false
+                                ); // false = don't clean up on source change (optional)
+                            });
+                        }
+                    })
+                    .catch((err) => {
+                        console.log(
+                            "No subtitles found or error fetching them:",
+                            err
+                        );
+                    });
             });
 
             const fid = "{{ fid }}";

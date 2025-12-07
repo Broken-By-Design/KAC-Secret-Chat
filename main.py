@@ -34,7 +34,7 @@ from mysql.connector import pooling
 from functools import wraps
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify, send_file, session
+from flask import Flask, render_template, request, make_response, redirect, url_for, jsonify, send_file, session, send_from_directory
 from flask_socketio import SocketIO, disconnect
 
 from utils.helpers import *
@@ -947,92 +947,138 @@ def get_stream(fif):
     url = url_fetch.json()[0].get("url", "")
     return jsonify({"url": url})
 
-@app.route('/get_subtitle/<fid>', methods=['GET'])
+@app.route('/subtitles/<fid>/<path:filename>', methods=['GET'])
+def serve_subtitle_file(fid, filename):
+    subs_dir = os.path.join(app.root_path, 'subtitles', fid)
+    return send_from_directory(subs_dir, filename)
+
+@app.route('/get_subtitles/<fid>', methods=['GET'])
 def get_subtitle(fid):
-    subs_dir = os.path.join(app.root_path, 'subtitles')
-    if not os.path.exists(subs_dir):
-        os.makedirs(subs_dir)
+    # Create a specific directory for this video's subtitles
+    subs_root = os.path.join(app.root_path, 'subtitles')
+    fid_dir = os.path.join(subs_root, fid)
     
-    vtt_filename = f"{fid}.vtt"
-    vtt_path = os.path.join(subs_dir, vtt_filename)
+    if not os.path.exists(fid_dir):
+        os.makedirs(fid_dir)
+    
+    # 1. CHECK CACHE: If files already exist in the folder, return them
+    existing_files = [f for f in os.listdir(fid_dir) if f.endswith('.vtt')]
+    if existing_files:
+        existing_files.sort() # Ensure consistent order (1.vtt, 2.vtt)
+        subs_response = []
+        for f in existing_files:
+            # Create a nice label, e.g., "English 1"
+            label_num = f.replace('.vtt', '')
+            subs_response.append({
+                "label": f"English {label_num}",
+                "src": url_for('serve_subtitle_file', fid=fid, filename=f, _external=True)
+            })
+        return jsonify({"subs": subs_response}), 200
 
-    if os.path.exists(vtt_path):
-        return send_file(vtt_path)
-
-    imdb_req = requests.get(f"https://feb.superstudies.site/api/febbox/imdb?fid={fid}")
-    imdb_id = imdb_req.json().get("imdb", "")
-
-    sub_url = f"https://yts-subs.com/movie-imdb/{imdb_id}"
-
-    sub_req = requests.get(sub_url)
-    if sub_req.status_code != 200:
-        return jsonify({"error": "Subtitles not found"}), 404
-    soup = BeautifulSoup(sub_req.text, 'html.parser')
-
-    rows = soup.find_all("tr")
-
-    # print(rows)
-
-    # Store results
-    downloads = []
-
-    for row in rows[1:]:  # skip header
-        cols = row.find_all("td")
-        # print(cols[1])
-        if len(cols) >= 2:
-            language = cols[1].get_text(strip=True)
-            download_cell = cols[4]
-            
-            if "English" in language:
-                link = download_cell.find("a")["href"]
-                downloads.append(link)
-    # print(downloads)
-    if len(downloads) == 0:
-        return jsonify({"error": "English subtitles not found"}), 404
-    sub_req2 = requests.get("https://yts-subs.com" + downloads[0])
-    soup = BeautifulSoup(sub_req2.text, 'html.parser')
-
-    download_button = soup.find("a", id="btn-download-subtitle")
-
-    encoded_link = download_button["data-link"]
-
-    decoded_link = base64.b64decode(encoded_link).decode("utf-8")
-
-    final_srt = ""
-
-    zip_res = requests.get(decoded_link, timeout=10)
-    with zipfile.ZipFile(io.BytesIO(zip_res.content)) as z:
-        for filename in z.namelist():
-            if filename.endswith('.srt'):
-                final_srt = z.read(filename)
-
+    # 2. FETCH METADATA
     try:
-        # Try UTF-8 (standard)
-        decoded_srt = final_srt.decode("utf-8")
-    except UnicodeDecodeError:
-        try:
-            decoded_srt = final_srt.decode("latin-1")
-        except UnicodeDecodeError:
-            decoded_srt = final_srt.decode("utf-8", errors="ignore")
+        imdb_req = requests.get(f"https://feb.superstudies.site/api/febbox/imdb?fid={fid}")
+        if imdb_req.status_code != 200:
+            return jsonify({"error": "Failed to fetch IMDB ID"}), 404
+            
+        imdb_id = imdb_req.json().get("imdb", "")
+        if not imdb_id:
+            return jsonify({"error": "No IMDB ID found"}), 404
 
-    lines = decoded_srt.splitlines(keepends=True)
+        sub_url = f"https://yts-subs.com/movie-imdb/{imdb_id}"
+        sub_req = requests.get(sub_url)
+        if sub_req.status_code != 200:
+            return jsonify({"error": "Subtitles not found"}), 404
+            
+        soup = BeautifulSoup(sub_req.text, 'html.parser')
+        rows = soup.find_all("tr")
 
+        # 3. GATHER LINKS (Filter for English)
+        download_links = []
+        for row in rows[1:]:
+            cols = row.find_all("td")
+            if len(cols) >= 2:
+                language = cols[1].get_text(strip=True)
+                # You can check for rating here if you want to sort by quality
+                if "English" in language:
+                    link_tag = cols[4].find("a")
+                    if link_tag:
+                        download_links.append(link_tag["href"])
 
-    with open(vtt_path, "w") as vtt_file:
+        if not download_links:
+            return jsonify({"error": "English subtitles not found"}), 404
 
-        # Required WEBVTT header and blank line for .vtt files
-        vtt_file.write("WEBVTT\n\n")
+        # 4. PROCESS TOP 3
+        # Take up to 3 links
+        top_links = download_links[:3]
+        processed_subs = []
 
-        for line in lines:
-            if line.strip().isdigit():
-                continue
+        for index, link in enumerate(top_links):
+            try:
+                # Scrape the specific download page
+                sub_page_res = requests.get("https://yts-subs.com" + link)
+                sub_soup = BeautifulSoup(sub_page_res.text, 'html.parser')
+                
+                btn = sub_soup.find("a", id="btn-download-subtitle")
+                if not btn: continue
 
-            if "-->" in line:
-                line = line.replace(",", ".")
+                encoded_link = btn["data-link"]
+                decoded_link = base64.b64decode(encoded_link).decode("utf-8")
 
-            vtt_file.write(line)
+                # Download Zip
+                zip_res = requests.get(decoded_link, timeout=10)
+                srt_content = None
 
-    return send_file(vtt_path)
+                with zipfile.ZipFile(io.BytesIO(zip_res.content)) as z:
+                    for zfilename in z.namelist():
+                        if zfilename.lower().endswith('.srt'):
+                            srt_content = z.read(zfilename)
+                            break 
+                
+                if not srt_content: continue
+
+                # Decode (Handle encoding mess)
+                try:
+                    decoded_srt = srt_content.decode("utf-8")
+                except UnicodeDecodeError:
+                    try:
+                        decoded_srt = srt_content.decode("latin-1")
+                    except:
+                        decoded_srt = srt_content.decode("utf-8", errors="ignore")
+
+                # Convert to VTT
+                vtt_lines = ["WEBVTT\n\n"]
+                for line in decoded_srt.splitlines():
+                    if line.strip().isdigit():
+                        continue
+                    if "-->" in line:
+                        line = line.replace(",", ".")
+                    vtt_lines.append(line)
+                
+                # Save file: 1.vtt, 2.vtt, 3.vtt
+                file_name = f"{index + 1}.vtt"
+                save_path = os.path.join(fid_dir, file_name)
+                
+                with open(save_path, "w", encoding='utf-8') as f:
+                    f.write("\n".join(vtt_lines))
+                
+                processed_subs.append({
+                    "label": f"English {index + 1}",
+                    "src": url_for('serve_subtitle_file', fid=fid, filename=file_name, _external=True)
+                })
+
+            except Exception as e:
+                print(f"Error processing subtitle {index}: {e}")
+                continue # Skip this one and try the next
+
+        if not processed_subs:
+            return jsonify({"error": "Failed to process any subtitles"}), 500
+
+        return jsonify({"subs": processed_subs}), 200
+
+    except Exception as e:
+        print(f"Global error in get_subtitles: {e}")
+        return jsonify({"error": "Server Error"}), 500
     
 
 @app.route('/movie/<fid>', methods=['GET'])
