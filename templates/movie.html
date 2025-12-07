@@ -78,7 +78,7 @@
                 opacity: 1 !important;
             }
         </style>
-        <title>{{ movie_name }}</title>
+        <!-- <title>{{ movie_name }}</title> -->
     </head>
     <body>
         <video
@@ -125,11 +125,8 @@
                 }, 200);
 
                 const urlParams = new URLSearchParams(window.location.search);
-                let movieName = urlParams.get("n");
+                let movieName = urlParams.get("n") || "Unknown Title";
 
-                if (!movieName) {
-                    movieName = "{{ movie_name }}" || "Unknown Title";
-                }
                 const titleOverlay = document.createElement("div");
                 titleOverlay.className = "vjs-title-overlay";
 
