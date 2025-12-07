@@ -8,7 +8,7 @@
             rel="stylesheet"
         />
         <!-- <link href="https://cdn.jsdelivr.net/npm/@videojs/themes@1/dist/city/index.css" rel="stylesheet" /> -->
-        <style>
+        <!-- <style>
             body {
                 margin: 0;
                 background: black;
@@ -16,6 +16,66 @@
             .video-js {
                 width: 100vw !important;
                 height: 100vh !important;
+            }
+        </style> -->
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                background: black;
+                /* This is the fix: */
+                overflow: hidden;
+                width: 100vw;
+                height: 100vh;
+            }
+            .video-js {
+                /* Use % so it fills the body exactly without triggering scrollbars */
+                width: 100% !important;
+                height: 100% !important;
+                border: none; /* Just in case */
+            }
+
+            /* Optional: Make subtitles look a bit better/more readable */
+            .video-js .vjs-text-track-display {
+                bottom: 3em;
+            }
+
+            .vjs-title-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                padding: 20px;
+                padding-top: 30px; /* Space from top */
+
+                /* YouTube style dark gradient at the top so text is readable */
+                background: linear-gradient(
+                    to bottom,
+                    rgba(0, 0, 0, 0.8) 0%,
+                    rgba(0, 0, 0, 0) 100%
+                );
+
+                color: #fff;
+                font-family: "Roboto", Arial, sans-serif;
+                font-size: 1.5rem; /* Adjust size as needed */
+                font-weight: 500;
+                text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+                pointer-events: none; /* Let clicks pass through to the video */
+                z-index: 10; /* Above the video, below the control bar */
+
+                /* Animation settings */
+                transition: opacity 0.5s ease;
+                opacity: 1;
+            }
+
+            /* Hide the title when the controls are hidden (user inactive) AND video is playing */
+            .video-js.vjs-user-inactive.vjs-playing .vjs-title-overlay {
+                opacity: 0;
+            }
+
+            /* Ensure it stays visible if the video is paused, even if user is inactive */
+            .video-js.vjs-paused .vjs-title-overlay {
+                opacity: 1 !important;
             }
         </style>
         <title>{{ movie_name }}</title>
@@ -26,16 +86,56 @@
             class="video-js"
             controls
             preload="auto"
-            width="100vw"
-            height="100vh"
             type="video/mp4"
         >
             <source src="{{ movie_url }}" />
+            <track
+                kind="captions"
+                src="/get_subtitle/{{ fid }}"
+                srclang="en"
+                label="English"
+            />
         </video>
         <script src="https://vjs.zencdn.net/8.23.4/video.min.js"></script>
+        <script src="https://cdn.sc.gl/videojs-hotkeys/latest/videojs.hotkeys.min.js"></script>
         <script>
             const player = videojs("my-video", {
                 playbackRates: [0.25, 0.5, 1, 1.25, 1.5, 2, 3],
+                enableSmoothSeeking: true,
+                plugins: {
+                    hotkeys: {
+                        volumeStep: 0.1,
+                        seekStep: 5,
+                        enableModifiersForNumbers: true,
+                        captureDocumentHotkeys: true,
+                        documentHotkeysFocusElementFilter: (e) =>
+                            e.tagName.toLowerCase() === "textarea" ||
+                            e.tagName.toLowerCase() === "input",
+                    },
+                },
+            });
+
+            player.ready(function () {
+                this.focus();
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                let movieName = urlParams.get("n");
+
+                // Fallback: If ?n= is missing, use the server variable or a default
+                if (!movieName) {
+                    movieName = "{{ movie_name }}" || "Unknown Title";
+                }
+
+                // 3. Create the Title Overlay
+                const titleOverlay = document.createElement("div");
+                titleOverlay.className = "vjs-title-overlay";
+
+                // IMPORTANT: Use textContent instead of innerHTML for security
+                // (prevents XSS attacks via the URL)
+                titleOverlay.textContent = movieName;
+
+                // Append it to the player container
+                player.el().appendChild(titleOverlay);
             });
 
             const fid = "{{ fid }}";
@@ -123,9 +223,8 @@
                 (event) => {
                     const key = event.key.toLowerCase();
 
-                    // ESCAPE (Back)
                     if (key === "escape") {
-                        event.preventDefault(); // Stop standard browser actions
+                        event.preventDefault();
 
                         if (player.isFullscreen()) {
                             player.exitFullscreen();
@@ -140,32 +239,6 @@
                             // Navigate Back
                             window.location.href = "/movies";
                         }
-                    }
-
-                    // SPACE BAR (Play/Pause)
-                    else if (key === " ") {
-                        event.preventDefault();
-                        if (player.paused()) {
-                            player.play();
-                        } else {
-                            player.pause();
-                        }
-                    }
-
-                    // F KEY (Fullscreen)
-                    else if (key === "f") {
-                        if (player.isFullscreen()) {
-                            player.exitFullscreen();
-                        } else {
-                            player.requestFullscreen();
-                        }
-                    }
-
-                    // ARROW KEYS (Seek)
-                    else if (event.key === "ArrowRight") {
-                        player.currentTime(player.currentTime() + 10);
-                    } else if (event.key === "ArrowLeft") {
-                        player.currentTime(player.currentTime() - 10);
                     }
                 },
                 true

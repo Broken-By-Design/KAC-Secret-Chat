@@ -8,3 +8,7 @@ chatlogs/*
 *.bak
 
 GEMINI.md
+
+subtitles/
+
+*.dbm

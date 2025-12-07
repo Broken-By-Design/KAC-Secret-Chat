@@ -41,6 +41,14 @@ from utils.helpers import *
 
 import magic
 
+from bs4 import BeautifulSoup
+import zipfile
+import io
+import re
+
+# from srt_to_vtt import srt_to_vtt
+# 
+import base64
 
 load_dotenv()
 
@@ -939,6 +947,94 @@ def get_stream(fif):
     url = url_fetch.json()[0].get("url", "")
     return jsonify({"url": url})
 
+@app.route('/get_subtitle/<fid>', methods=['GET'])
+def get_subtitle(fid):
+    subs_dir = os.path.join(app.root_path, 'subtitles')
+    if not os.path.exists(subs_dir):
+        os.makedirs(subs_dir)
+    
+    vtt_filename = f"{fid}.vtt"
+    vtt_path = os.path.join(subs_dir, vtt_filename)
+
+    if os.path.exists(vtt_path):
+        return send_file(vtt_path)
+
+    imdb_req = requests.get(f"https://feb.superstudies.site/api/febbox/imdb?fid={fid}")
+    imdb_id = imdb_req.json().get("imdb", "")
+
+    sub_url = f"https://yts-subs.com/movie-imdb/{imdb_id}"
+
+    sub_req = requests.get(sub_url)
+    if sub_req.status_code != 200:
+        return jsonify({"error": "Subtitles not found"}), 404
+    soup = BeautifulSoup(sub_req.text, 'html.parser')
+
+    rows = soup.find_all("tr")
+
+    # print(rows)
+
+    # Store results
+    downloads = []
+
+    for row in rows[1:]:  # skip header
+        cols = row.find_all("td")
+        # print(cols[1])
+        if len(cols) >= 2:
+            language = cols[1].get_text(strip=True)
+            download_cell = cols[4]
+            
+            if "English" in language:
+                link = download_cell.find("a")["href"]
+                downloads.append(link)
+    # print(downloads)
+    if len(downloads) == 0:
+        return jsonify({"error": "English subtitles not found"}), 404
+    sub_req2 = requests.get("https://yts-subs.com" + downloads[0])
+    soup = BeautifulSoup(sub_req2.text, 'html.parser')
+
+    download_button = soup.find("a", id="btn-download-subtitle")
+
+    encoded_link = download_button["data-link"]
+
+    decoded_link = base64.b64decode(encoded_link).decode("utf-8")
+
+    final_srt = ""
+
+    zip_res = requests.get(decoded_link, timeout=10)
+    with zipfile.ZipFile(io.BytesIO(zip_res.content)) as z:
+        for filename in z.namelist():
+            if filename.endswith('.srt'):
+                final_srt = z.read(filename)
+
+    try:
+        # Try UTF-8 (standard)
+        decoded_srt = final_srt.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            decoded_srt = final_srt.decode("latin-1")
+        except UnicodeDecodeError:
+            decoded_srt = final_srt.decode("utf-8", errors="ignore")
+
+    lines = decoded_srt.splitlines(keepends=True)
+
+
+    with open(vtt_path, "w") as vtt_file:
+
+        # Required WEBVTT header and blank line for .vtt files
+        vtt_file.write("WEBVTT\n\n")
+
+        for line in lines:
+            if line.strip().isdigit():
+                continue
+
+            if "-->" in line:
+                line = line.replace(",", ".")
+
+            vtt_file.write(line)
+
+    return send_file(vtt_path)
+    
+
 @app.route('/movie/<fid>', methods=['GET'])
 def movie(fid):
     share_key = "LofCen6W"
@@ -968,7 +1064,7 @@ def movies():
                 movie_list.append({
                     "name": clean_name,
                     "thumb": item.get('thumb', ''),
-                    "file_id": item.get('fid')
+                    "file_id": item.get('fid'),
                 })
 
     movie_list.sort(key=lambda x: x['name'].replace(" ", "").lower())
