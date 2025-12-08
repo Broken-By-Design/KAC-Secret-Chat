@@ -40,6 +40,19 @@
                 bottom: 3em;
             }
 
+            .vjs-audio-boost-button {
+                cursor: pointer;
+                font-weight: bold;
+                font-size: 14px;
+                width: 4em !important; /* Make it wider for text */
+                color: #fff;
+                margin-top: 0.2em;
+            }
+            .vjs-audio-boost-button:hover {
+                text-shadow: 0 0 5px #fff;
+                color: #ff4141; /* Netflix Red accent */
+            }
+
             .vjs-title-overlay {
                 position: absolute;
                 top: 0;
@@ -87,6 +100,7 @@
             controls
             preload="auto"
             type="video/mp4"
+            crossorigin="anonymous"
             autofocus
         >
             <source src="{{ movie_url }}" />
@@ -116,9 +130,85 @@
                 },
             });
 
+            let audioCtx;
+            let gainNode;
+            let boostLevel = 1; 
+            let boostButtonEl; // Holds the DOM element for the button
+
+            function initAudioContext() {
+                if (audioCtx) return; 
+
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                const videoElement = player.tech().el();
+
+                try {
+                    const source = audioCtx.createMediaElementSource(videoElement);
+                    gainNode = audioCtx.createGain();
+                    const compressor = audioCtx.createDynamicsCompressor();
+                    
+                    // Compressor settings to avoid distortion
+                    compressor.threshold.setValueAtTime(-50, audioCtx.currentTime);
+                    compressor.knee.setValueAtTime(40, audioCtx.currentTime);
+                    compressor.ratio.setValueAtTime(12, audioCtx.currentTime);
+                    compressor.attack.setValueAtTime(0, audioCtx.currentTime);
+                    compressor.release.setValueAtTime(0.25, audioCtx.currentTime);
+
+                    source.connect(gainNode);
+                    gainNode.connect(compressor);
+                    compressor.connect(audioCtx.destination);
+                } catch (e) {
+                    console.error("Audio Boost failed. CORS issue?", e);
+                }
+            }
+
+            function toggleBoost() {
+                if (!audioCtx) initAudioContext();
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                if (!gainNode) return;
+
+                // Cycle: 1 -> 2 -> 4 -> 1
+                if (boostLevel === 1) boostLevel = 2;
+                else if (boostLevel === 2) boostLevel = 4;
+                else boostLevel = 1;
+
+                gainNode.gain.value = boostLevel;
+
+                // Update text
+                if (boostButtonEl) {
+                    boostButtonEl.innerHTML = `Vol: ${boostLevel}x`;
+                    boostButtonEl.style.color = boostLevel > 1 ? "#ff4141" : "#fff";
+                }
+            }
+
+
             player.ready(function () {
                 // this.focus();
                 var myPlayer = this;
+
+                const Button = videojs.getComponent('Button');
+
+                class BoostBtn extends Button {
+                    constructor(player, options) {
+                        super(player, options);
+                        this.addClass('vjs-audio-boost-button');
+                        this.controlText('Audio Boost');
+                        
+                        // Save the element reference to the global variable
+                        boostButtonEl = this.el();
+                        boostButtonEl.innerHTML = 'Vol: 1x';
+                    }
+
+                    handleClick() {
+                        toggleBoost();
+                    }
+                }
+
+                // Register and Add Component
+                videojs.registerComponent('BoostBtn', BoostBtn);
+                myPlayer.controlBar.addChild('BoostBtn', {}, 8);
+
+
 
                 setTimeout(function () {
                     myPlayer.focus();
