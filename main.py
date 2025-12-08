@@ -941,7 +941,7 @@ def gamble():
     return render_template('gamble.html')
 
 @app.route("/get_stream/<fid>", methods=['GET'])
-def get_stream(fif):
+def get_stream(fid):
     share_key = "LofCen6W"
     url_fetch = requests.get(f"https://feb.superstudies.site/api/febbox/links?shareKey={share_key}&fid={fid}")
     url = url_fetch.json()[0].get("url", "")
@@ -961,7 +961,6 @@ def get_subtitle(fid):
     if not os.path.exists(fid_dir):
         os.makedirs(fid_dir)
     
-    # 1. CHECK CACHE: If files already exist in the folder, return them
     existing_files = [f for f in os.listdir(fid_dir) if f.endswith('.vtt')]
     if existing_files:
         existing_files.sort() # Ensure consistent order (1.vtt, 2.vtt)
@@ -975,7 +974,6 @@ def get_subtitle(fid):
             })
         return jsonify({"subs": subs_response}), 200
 
-    # 2. FETCH METADATA
     try:
         imdb_req = requests.get(f"https://feb.superstudies.site/api/febbox/imdb?fid={fid}")
         if imdb_req.status_code != 200:
@@ -993,7 +991,6 @@ def get_subtitle(fid):
         soup = BeautifulSoup(sub_req.text, 'html.parser')
         rows = soup.find_all("tr")
 
-        # 3. GATHER LINKS (Filter for English)
         download_links = []
         for row in rows[1:]:
             cols = row.find_all("td")
@@ -1008,14 +1005,11 @@ def get_subtitle(fid):
         if not download_links:
             return jsonify({"error": "English subtitles not found"}), 404
 
-        # 4. PROCESS TOP 3
-        # Take up to 3 links
         top_links = download_links[:3]
         processed_subs = []
 
         for index, link in enumerate(top_links):
             try:
-                # Scrape the specific download page
                 sub_page_res = requests.get("https://yts-subs.com" + link)
                 sub_soup = BeautifulSoup(sub_page_res.text, 'html.parser')
                 
@@ -1025,7 +1019,6 @@ def get_subtitle(fid):
                 encoded_link = btn["data-link"]
                 decoded_link = base64.b64decode(encoded_link).decode("utf-8")
 
-                # Download Zip
                 zip_res = requests.get(decoded_link, timeout=10)
                 srt_content = None
 
@@ -1037,7 +1030,6 @@ def get_subtitle(fid):
                 
                 if not srt_content: continue
 
-                # Decode (Handle encoding mess)
                 try:
                     decoded_srt = srt_content.decode("utf-8")
                 except UnicodeDecodeError:
@@ -1046,7 +1038,6 @@ def get_subtitle(fid):
                     except:
                         decoded_srt = srt_content.decode("utf-8", errors="ignore")
 
-                # Convert to VTT
                 vtt_lines = ["WEBVTT\n\n"]
                 for line in decoded_srt.splitlines():
                     if line.strip().isdigit():
@@ -1055,7 +1046,6 @@ def get_subtitle(fid):
                         line = line.replace(",", ".")
                     vtt_lines.append(line)
                 
-                # Save file: 1.vtt, 2.vtt, 3.vtt
                 file_name = f"{index + 1}.vtt"
                 save_path = os.path.join(fid_dir, file_name)
                 
@@ -1069,7 +1059,7 @@ def get_subtitle(fid):
 
             except Exception as e:
                 print(f"Error processing subtitle {index}: {e}")
-                continue # Skip this one and try the next
+                continue
 
         if not processed_subs:
             return jsonify({"error": "Failed to process any subtitles"}), 500
