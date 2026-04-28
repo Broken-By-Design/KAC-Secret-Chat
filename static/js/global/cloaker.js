@@ -21,10 +21,10 @@ if (
             cloak();
         }
     }
-    document.title = "TeacherEase: Student Main";
-    const link = document.createElement("link");
-    link.rel = "icon";
-    link.href = "https://www.teacherease.com/favicon.ico";
+    document.title = "New Tab";
+    // const link = document.createElement("link");
+    // link.rel = "icon";
+    // link.href = "https://www.teacherease.com/favicon.ico";
     document.head.appendChild(link);
 }
 
@@ -44,10 +44,10 @@ function cloak() {
             );
             location.replace("https://www.google.com");
         } else {
-            popup.document.title = "TeacherEase: Student Main";
+            popup.document.title = "New Tab";
             const link = popup.document.createElement("link");
             link.rel = "icon";
-            link.href = "https://www.teacherease.com/favicon.ico";
+            // link.href = "https://www.teacherease.com/favicon.ico";
             popup.document.head.appendChild(link);
             const iframe = popup.document.createElement("iframe");
             iframe.style.position = "fixed";
